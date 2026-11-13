@@ -1,6 +1,6 @@
 namespace Payment.Api.Domain;
 
-/// <summary>State of a <see cref="Payment"/>.</summary>
+/// <summary>State of an <see cref="OrderPayment"/>.</summary>
 public enum PaymentStatus
 {
     /// <summary>Money was taken.</summary>
@@ -17,16 +17,16 @@ public enum PaymentStatus
 /// The payment attempt for one order. There is at most one per order: the charge request is
 /// handled once (idempotently) and its outcome is kept here.
 /// </summary>
-public sealed class Payment
+public sealed class OrderPayment
 {
     /// <summary>Maximum length of the failure and refund reasons.</summary>
     public const int ReasonMaxLength = 500;
 
-    private Payment()
+    private OrderPayment()
     {
     }
 
-    private Payment(Guid orderId, Guid customerId, decimal amount, string currency, PaymentStatus status, string? failureReason, DateTimeOffset now)
+    private OrderPayment(Guid orderId, Guid customerId, decimal amount, string currency, PaymentStatus status, string? failureReason, DateTimeOffset now)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(orderId, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
@@ -81,11 +81,11 @@ public sealed class Payment
     public uint Version { get; private set; }
 
     /// <summary>Records a successful charge.</summary>
-    public static Payment Charge(Guid orderId, Guid customerId, decimal amount, string currency, DateTimeOffset now) =>
+    public static OrderPayment Charge(Guid orderId, Guid customerId, decimal amount, string currency, DateTimeOffset now) =>
         new(orderId, customerId, amount, currency, PaymentStatus.Charged, failureReason: null, now);
 
     /// <summary>Records a declined charge.</summary>
-    public static Payment Decline(Guid orderId, Guid customerId, decimal amount, string currency, string reason, DateTimeOffset now)
+    public static OrderPayment Decline(Guid orderId, Guid customerId, decimal amount, string currency, string reason, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         return new(orderId, customerId, amount, currency, PaymentStatus.Declined, reason, now);
