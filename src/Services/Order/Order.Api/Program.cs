@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Order.Api.Data;
 using Order.Api.Application;
 using Order.Api.Clients;
+using Order.Api.Messaging;
 using Order.Api.Saga;
 using Store.Messaging;
 using Store.Observability;
@@ -27,11 +28,18 @@ builder.Services.AddScoped<OrderPlacementService>();
 builder.Services.AddScoped<OrderSagaOrchestrator>();
 builder.Services.AddStoreMessaging(builder.Configuration);
 builder.Services.AddHostedService<StalledSagaMonitor>();
+builder.Services.AddEventConsumer<StockReservedConsumer>();
+builder.Services.AddEventConsumer<StockReservationFailedConsumer>();
+builder.Services.AddEventConsumer<PaymentChargedConsumer>();
+builder.Services.AddEventConsumer<PaymentFailedConsumer>();
+builder.Services.AddEventConsumer<StockReleasedConsumer>();
+builder.Services.AddEventConsumer<PaymentRefundedConsumer>();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
 
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<OrderDbContext>("database");
+    .AddDbContextCheck<OrderDbContext>("database")
+    .AddRabbitMqHealthCheck();
 
 var app = builder.Build();
 
