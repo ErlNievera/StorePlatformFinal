@@ -50,7 +50,7 @@ public sealed record OrderConfirmed(
     Guid CustomerId,
     Guid PaymentId,
     decimal TotalAmount,
-    string Currency) : IIntegrationEvent;
+    string Currency) : INotificationEvent;
 
 /// <summary>
 /// Published by Order.Api when the saga ends in <c>Cancelled</c>, after every needed
@@ -68,4 +68,4 @@ public sealed record OrderCancelled(
     Guid OrderId,
     DateTimeOffset OccurredAt,
     Guid CustomerId,
-    string Reason) : IIntegrationEvent;
+    string Reason) : INotificationEvent;
