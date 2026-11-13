@@ -1,0 +1,37 @@
+# Build context is the repository root so Dockerfiles can copy shared projects.
+# Keep the context small and never send secrets or build output to the daemon.
+
+# VCS and editor metadata
+.git
+.gitignore
+.gitattributes
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Build output
+**/bin/
+**/obj/
+**/out/
+**/TestResults/
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
+
+# Container definitions themselves are not needed inside images
+**/Dockerfile*
+docker-compose*.yml
+
+# Non-runtime folders
+docs/
+Evidence/
+postman/
+http/
+contracts/*.md
+**/node_modules/
+**/*.md
