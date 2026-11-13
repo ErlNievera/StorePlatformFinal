@@ -1,0 +1,39 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Create an account";
+}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="ac-card p-4 p-md-5">
+            <p class="text-accent text-uppercase small fw-semibold mb-1" style="letter-spacing:.15em">Join the campus store</p>
+            <h1 class="h2">Create an account</h1>
+            <div class="gold-rule my-3"></div>
+            <form method="post" asp-antiforgery="true" action="/account/register" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <div class="mb-3">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" autocomplete="name" autofocus />
+                    <span asp-validation-for="FullName" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <input asp-for="Email" class="form-control" autocomplete="email" />
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <input asp-for="Password" class="form-control" autocomplete="new-password" aria-describedby="passwordHelp" />
+                    <div id="passwordHelp" class="form-text">At least 8 characters with an upper-case letter, a lower-case letter and a number.</div>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <div class="mb-4">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                </div>
+                <button type="submit" class="btn btn-gold btn-lg w-100">Create account</button>
+            </form>
+            <p class="mt-4 mb-0 text-center">Already have an account? <a href="/account/login">Sign in</a></p>
+        </div>
+    </div>
+</div>

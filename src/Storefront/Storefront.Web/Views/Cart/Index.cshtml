@@ -1,0 +1,53 @@
+@model CartViewModel
+@{
+    ViewData["Title"] = "Your cart";
+}
+<h1 class="h2 mb-3"><i class="bi bi-cart3" aria-hidden="true"></i> Your cart</h1>
+@if (Model.Lines.Count == 0)
+{
+    <section class="empty-state ac-card">
+        <div class="icon mb-2"><i class="bi bi-cart-x" aria-hidden="true"></i></div>
+        <h2 class="h4">Your cart is empty</h2>
+        <p class="text-muted">Browse the campus store and add something you like.</p>
+        <a class="btn btn-primary" href="/"><i class="bi bi-shop" aria-hidden="true"></i> Start shopping</a>
+    </section>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="ac-card p-3 stagger">
+                @foreach (var line in Model.Lines)
+                {
+                    <div class="d-flex flex-wrap align-items-center gap-3 py-3 border-bottom">
+                        <div class="product-art rounded-3" style="width: 72px; font-size: 1.8rem"><i class="bi @ProductIcon.For(line.Name)" aria-hidden="true"></i></div>
+                        <div class="flex-grow-1">
+                            <a class="fw-semibold" href="/products/@line.ProductId">@line.Name</a>
+                            <div class="small text-muted">@Money.Format(line.UnitPrice, line.Currency) each</div>
+                        </div>
+                        <form method="post" asp-antiforgery="true" action="/cart/update" class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="productId" value="@line.ProductId" />
+                            <label class="visually-hidden" for="qty-@line.ProductId">Quantity of @line.Name</label>
+                            <input id="qty-@line.ProductId" name="quantity" type="number" min="0" max="@CartService.MaxQuantity" value="@line.Quantity" class="form-control form-control-sm" style="width: 5.5rem" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Update</button>
+                        </form>
+                        <div class="fw-semibold text-end" style="min-width: 7rem">@Money.Format(line.LineTotal, line.Currency)</div>
+                        <form method="post" asp-antiforgery="true" action="/cart/remove">
+                            <input type="hidden" name="productId" value="@line.ProductId" />
+                            <button type="submit" class="btn btn-sm btn-link text-danger" aria-label="Remove @line.Name"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <aside class="ac-card p-4">
+                <h2 class="h5">Summary</h2>
+                <div class="d-flex justify-content-between my-3"><span>Items</span><span>@Model.Lines.Sum(l => l.Quantity)</span></div>
+                <div class="d-flex justify-content-between fs-5 fw-bold mb-3"><span>Total</span><span>@Money.Format(Model.Total, Model.Currency)</span></div>
+                <a class="btn btn-gold btn-lg w-100" href="/checkout"><i class="bi bi-lock" aria-hidden="true"></i> Checkout</a>
+                <p class="small text-muted mt-3 mb-0">Prices are confirmed when you place the order.</p>
+            </aside>
+        </div>
+    </div>
+}

@@ -1,0 +1,79 @@
+@model CatalogViewModel
+@{
+    ViewData["Title"] = "Shop";
+}
+<section class="hero mb-4">
+    <p class="motto mb-2">Caritas · Justitia · Fortitudo</p>
+    <h1 class="display-6 mb-2">The UST Angelicum College Campus Store</h1>
+    <p class="lead mb-3" style="max-width: 46rem">Wear the blue and gold. Every order is reserved, paid and confirmed by our services in seconds, and you can watch each step happen.</p>
+    @if (User.Identity?.IsAuthenticated != true)
+    {
+        <a class="btn btn-gold btn-lg" href="/account/register"><i class="bi bi-person-plus" aria-hidden="true"></i> Create an account</a>
+    }
+</section>
+
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-warning d-flex gap-2 align-items-start" role="status">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>@Model.Error</div>
+    </div>
+}
+
+@if (Model.Products.Count == 0)
+{
+    <section class="empty-state ac-card">
+        <div class="icon mb-2"><i class="bi bi-shop-window" aria-hidden="true"></i></div>
+        <h2 class="h4">The shelves are being restocked</h2>
+        <p class="text-muted mb-3">No products are available right now. Please check back in a moment.</p>
+        <a class="btn btn-primary" href="/">Try again</a>
+    </section>
+}
+else
+{
+    <h2 class="h4 mb-3">Products <span class="text-muted fs-6 fw-normal">(@Model.Products.Count)</span></h2>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 stagger">
+        @foreach (var card in Model.Products)
+        {
+            var p = card.Product;
+            <div class="col">
+                <article class="ac-card product-card d-flex flex-column">
+                    <a href="/products/@p.ProductId" class="product-art text-decoration-none" aria-label="View @p.Name">
+                        <i class="bi @ProductIcon.For(p.Name)" aria-hidden="true"></i>
+                    </a>
+                    <div class="p-3 d-flex flex-column flex-grow-1">
+                        <h3 class="h6 mb-1"><a href="/products/@p.ProductId" class="text-reset text-decoration-none">@p.Name</a></h3>
+                        <p class="small text-muted mb-2 flex-grow-1">@p.Description</p>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="price">@Money.Format(p.Price, p.Currency)</span>
+                            @if (card.Available is null)
+                            {
+                                <span class="badge rounded-pill text-bg-secondary">Stock unknown</span>
+                            }
+                            else if (card.Available == 0)
+                            {
+                                <span class="badge rounded-pill badge-out">Sold out</span>
+                            }
+                            else if (card.Available <= 5)
+                            {
+                                <span class="badge rounded-pill badge-low">Only @card.Available left</span>
+                            }
+                            else
+                            {
+                                <span class="badge rounded-pill badge-stock">In stock</span>
+                            }
+                        </div>
+                        <form method="post" asp-antiforgery="true" action="/cart/add" class="d-flex gap-2">
+                            <input type="hidden" name="productId" value="@p.ProductId" />
+                            <input type="hidden" name="quantity" value="1" />
+                            <input type="hidden" name="returnUrl" value="/" />
+                            <button type="submit" class="btn btn-primary btn-sm flex-grow-1" disabled="@(card.Available == 0)">
+                                <i class="bi bi-cart-plus" aria-hidden="true"></i> Add to cart
+                            </button>
+                            <a class="btn btn-outline-primary btn-sm" href="/products/@p.ProductId">Details</a>
+                        </form>
+                    </div>
+                </article>
+            </div>
+        }
+    </div>
+}

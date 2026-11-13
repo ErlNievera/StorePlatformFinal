@@ -1,0 +1,40 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+<div class="row g-4 auth-split align-items-stretch">
+    <div class="col-lg-6 d-none d-lg-block">
+        <div class="auth-art h-100">
+            <div>
+                <p class="text-uppercase small mb-2" style="letter-spacing:.2em">UST Angelicum College</p>
+                <p class="motto-line">Love in service,<br />justice in truth,<br />courage in every step.</p>
+            </div>
+            <div>
+                <div class="gold-rule mb-3"></div>
+                <div class="virtues"><span>Caritas</span><span>Justitia</span><span>Fortitudo</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 d-flex align-items-center">
+        <div class="ac-card p-4 p-md-5 w-100">
+            <h1 class="h2 mb-1">Welcome back</h1>
+            <p class="text-muted mb-4">Sign in to check out and follow your orders.</p>
+            <form method="post" asp-antiforgery="true" action="/account/login" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <input asp-for="Email" class="form-control form-control-lg" autocomplete="username" autofocus />
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+                <div class="mb-4">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <input asp-for="Password" class="form-control form-control-lg" autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100">Sign in</button>
+            </form>
+            <p class="mt-4 mb-0 text-center">New here? <a href="/account/register">Create an account</a></p>
+        </div>
+    </div>
+</div>
