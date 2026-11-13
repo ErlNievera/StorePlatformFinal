@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\Store.Messaging\Store.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Store.Observability\Store.Observability.csproj" />
   </ItemGroup>
 
 </Project>
