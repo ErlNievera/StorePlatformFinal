@@ -1,0 +1,340 @@
+openapi: 3.0.3
+info:
+  title: Store Platform - Inventory API
+  version: "1.0"
+  description: |
+    Stock on hand and stock reservations per product.
+
+    Inventory is the source of truth for how many units of a product exist and how
+    many are held by in-flight orders. Reservations are created and released by the
+    order saga through RabbitMQ events (`OrderPlaced`, `StockReleaseRequested`);
+    this HTTP API exposes stock reads, admin stock adjustments and reservation lookups.
+
+    Paths are relative to a server URL that already contains the API version:
+    the service serves them under `/api/v1`, and the gateway exposes them under
+    `/inventory/v1`.
+
+    Correlation: clients may send an `X-Correlation-ID` request header (the gateway
+    always sets one). The service reuses it, or generates one when it is missing,
+    and returns it in the `X-Correlation-ID` response header. Every error response
+    is an RFC 7807 Problem Details document carrying the same value in a
+    `correlationId` extension.
+  contact:
+    name: Erl Lorence Nievera
+servers:
+  - url: http://localhost:5000/inventory/v1
+    description: Through the Ocelot gateway (the only entry point for clients)
+  - url: http://localhost:5003/api/v1
+    description: Inventory.Api directly (development Swagger only)
+tags:
+  - name: Stock
+    description: Stock levels per product
+  - name: Reservations
+    description: Stock held for orders by the saga
+paths:
+  /stock:
+    get:
+      tags: [Stock]
+      operationId: listStockItems
+      summary: List stock levels for every product
+      description: Public. Returns one entry per product that has a stock record, ordered by product id.
+      security: []
+      responses:
+        '200':
+          description: Stock levels
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockItem'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /stock/{productId}:
+    get:
+      tags: [Stock]
+      operationId: getStockItem
+      summary: Get the stock level of one product
+      description: Public.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Stock level of the product
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /stock/{productId}/adjustments:
+    post:
+      tags: [Stock]
+      operationId: adjustStock
+      summary: Add or remove units of stock on hand
+      description: |
+        Admin only. Applies a signed delta to the quantity on hand.
+
+        If the product has no stock record yet, Inventory first validates the product
+        against Catalog (it must exist); the record is then created with zero units and
+        the delta is applied. The adjustment is rejected with 409 when it would make the
+        quantity on hand negative or lower than the quantity currently reserved.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentRequest'
+            example:
+              delta: 25
+              reason: Supplier delivery
+      responses:
+        '200':
+          description: Stock level after the adjustment
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /reservations/{orderId}:
+    get:
+      tags: [Reservations]
+      operationId: getReservation
+      summary: Get the stock reservation held for an order
+      description: Admin only. Shows which units the saga reserved for the order and whether they were released.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Reservation for the order
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity. Admin endpoints require the `Admin` role.
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      description: Catalog product id
+      schema:
+        type: string
+        format: uuid
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      description: Order id assigned by Order.Api
+      schema:
+        type: string
+        format: uuid
+  headers:
+    CorrelationId:
+      description: Correlation id of the request (echoed or generated)
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token was supplied
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: The caller is authenticated but lacks the Admin role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: The product or reservation does not exist
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: The change conflicts with the current stock state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: Inventory or a service it depends on (Catalog) is unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    StockItem:
+      type: object
+      required: [productId, quantityOnHand, quantityReserved, quantityAvailable, updatedAt]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantityOnHand:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Physical units in stock, including units reserved for orders
+        quantityReserved:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Units held by active reservations
+        quantityAvailable:
+          type: integer
+          format: int32
+          minimum: 0
+          description: quantityOnHand minus quantityReserved; what new orders can reserve
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        productId: 3f2b8c4e-0001-4a5b-9c1d-000000000001
+        quantityOnHand: 50
+        quantityReserved: 2
+        quantityAvailable: 48
+        updatedAt: '2026-11-13T08:00:00Z'
+    StockAdjustmentRequest:
+      type: object
+      required: [delta, reason]
+      properties:
+        delta:
+          type: integer
+          format: int32
+          minimum: -100000
+          maximum: 100000
+          description: Units to add (positive) or remove (negative). Zero is rejected with 400.
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Why the stock changed; stored with the adjustment
+    ReservationStatus:
+      type: string
+      enum: [Reserved, Released]
+    ReservationLine:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+    Reservation:
+      type: object
+      required: [orderId, status, lines, createdAt]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationLine'
+        createdAt:
+          type: string
+          format: date-time
+        releasedAt:
+          type: string
+          format: date-time
+          nullable: true
+        releaseReason:
+          type: string
+          nullable: true
+          maxLength: 500
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem document with the request's correlation id
+      required: [title, status, correlationId]
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
