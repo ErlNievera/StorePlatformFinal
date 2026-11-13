@@ -24,4 +24,7 @@
     <Project Path="src/Shared/Store.Messaging/Store.Messaging.csproj" />
     <Project Path="src/Shared/Store.Observability/Store.Observability.csproj" />
   </Folder>
+  <Folder Name="/src/Storefront/">
+    <Project Path="src/Storefront/Storefront.Web/Storefront.Web.csproj" />
+  </Folder>
 </Solution>
