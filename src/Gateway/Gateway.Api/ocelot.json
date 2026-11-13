@@ -15,6 +15,8 @@
       ],
       "RateLimitOptions": {
         "EnableRateLimiting": true,
+        "ClientIdHeader": "Oc-Client",
+        "ClientWhitelist": [],
         "Period": "1m",
         "PeriodTimespan": 60,
         "Limit": 5,
@@ -52,7 +54,7 @@
       "QoSOptions": {
         "ExceptionsAllowedBeforeBreaking": 3,
         "DurationOfBreak": 10000,
-        "TimeoutValue": 10000
+        "TimeoutValue": 5000
       }
     },
     {
@@ -71,7 +73,7 @@
       "QoSOptions": {
         "ExceptionsAllowedBeforeBreaking": 3,
         "DurationOfBreak": 10000,
-        "TimeoutValue": 10000
+        "TimeoutValue": 5000
       }
     },
     {
