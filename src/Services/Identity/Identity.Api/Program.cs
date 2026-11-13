@@ -1,8 +1,11 @@
 using Identity.Api.Data;
 using Identity.Api.Domain;
 using Microsoft.AspNetCore.Identity;
+using Identity.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using Store.Observability;
+using Store.Observability.Api;
+using Store.Observability.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddStoreConsoleLogging();
@@ -16,6 +19,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddStoreObservability();
+builder.Services.AddStoreJwtAuthentication(builder.Configuration);
+builder.Services.AddStoreApi("Store Platform - Identity API", "Customer registration, login and the JWTs every other service trusts.");
+builder.Services.AddSingleton<TokenService>();
 builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection(SeedOptions.SectionName));
 builder.Services.AddDbContext<StoreIdentityDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
@@ -42,9 +48,17 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 app.UseStoreObservability();
+if (app.Environment.IsDevelopment())
+{
+    app.UseStoreSwagger();
+}
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 await app.InitializeIdentityDatabaseAsync(app.Lifetime.ApplicationStopping);
 
 app.MapHealthChecks("/health");
+app.MapControllers();
 
 app.Run();
