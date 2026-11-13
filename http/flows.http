@@ -1,0 +1,266 @@
+### Store Platform - demo flows through the Ocelot gateway
+### Works with the VS Code "REST Client" extension and JetBrains Rider / IntelliJ HTTP Client.
+### Run the requests top to bottom; login requests capture the tokens into variables.
+### Start the system first: setup.cmd, then docker compose up --build
+
+@gateway = http://localhost:5000
+@customerEmail = customer@store.local
+@customerPassword = Customer#Dev2026
+@adminEmail = admin@store.local
+@adminPassword = Admin#Dev2026
+@productId = ac000000-0000-4000-a000-000000000004
+@limitedProductId = ac000000-0000-4000-a000-000000000010
+
+###############################################################################
+# 1. Browse (public)
+###############################################################################
+
+### Active products
+GET {{gateway}}/catalog/v1/products
+
+### One product
+GET {{gateway}}/catalog/v1/products/{{productId}}
+
+### Stock levels
+GET {{gateway}}/inventory/v1/stock
+
+###############################################################################
+# 2. Register and login
+###############################################################################
+
+### Register a new customer (change the email to run it again)
+POST {{gateway}}/identity/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "flows.demo@example.com",
+  "password": "Caritas2026",
+  "fullName": "Flows Demo"
+}
+
+### Login as customer (token saved as customerToken)
+# @name customerLogin
+POST {{gateway}}/identity/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{customerEmail}}",
+  "password": "{{customerPassword}}"
+}
+
+@customerToken = {{customerLogin.response.body.$.accessToken}}
+
+### Login as admin (token saved as adminToken)
+# @name adminLogin
+POST {{gateway}}/identity/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+@adminToken = {{adminLogin.response.body.$.accessToken}}
+
+### Who am I
+GET {{gateway}}/identity/v1/auth/me
+Authorization: Bearer {{customerToken}}
+
+###############################################################################
+# 3. Successful order: Pending -> StockReserved -> PaymentCharged -> Confirmed
+###############################################################################
+
+### Make sure both failure switches are off
+PUT {{gateway}}/payments/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "None" }
+
+###
+PUT {{gateway}}/orders/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "None" }
+
+### Place an order (202 Accepted, status Pending)
+# @name happyOrder
+POST {{gateway}}/orders/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+X-Correlation-ID: flows-happy-001
+
+{
+  "lines": [ { "productId": "{{productId}}", "quantity": 1 } ]
+}
+
+@happyOrderId = {{happyOrder.response.body.$.orderId}}
+
+### Status history (send again after a second: Confirmed)
+GET {{gateway}}/orders/v1/orders/{{happyOrderId}}
+Authorization: Bearer {{customerToken}}
+
+### My orders
+GET {{gateway}}/orders/v1/orders/mine
+Authorization: Bearer {{customerToken}}
+
+###############################################################################
+# 4. Insufficient stock: the medal has 1 unit -> Cancelled, nothing charged
+###############################################################################
+
+# @name noStockOrder
+POST {{gateway}}/orders/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+X-Correlation-ID: flows-nostock-001
+
+{
+  "lines": [ { "productId": "{{limitedProductId}}", "quantity": 2 } ]
+}
+
+@noStockOrderId = {{noStockOrder.response.body.$.orderId}}
+
+###
+GET {{gateway}}/orders/v1/orders/{{noStockOrderId}}
+Authorization: Bearer {{customerToken}}
+
+###############################################################################
+# 5. Payment declined -> stock released -> Cancelled
+###############################################################################
+
+### Turn on DeclineCharge (readable with GET)
+PUT {{gateway}}/payments/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "DeclineCharge" }
+
+###
+GET {{gateway}}/payments/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+
+###
+# @name declinedOrder
+POST {{gateway}}/orders/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+X-Correlation-ID: flows-declined-001
+
+{
+  "lines": [ { "productId": "{{productId}}", "quantity": 1 } ]
+}
+
+@declinedOrderId = {{declinedOrder.response.body.$.orderId}}
+
+### History shows "Stock released" with isCompensation = true
+GET {{gateway}}/orders/v1/orders/{{declinedOrderId}}
+Authorization: Bearer {{customerToken}}
+
+### Back to normal
+PUT {{gateway}}/payments/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "None" }
+
+###############################################################################
+# 6. Failure after payment -> refund + stock release -> Cancelled
+###############################################################################
+
+PUT {{gateway}}/orders/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "FailAfterPayment" }
+
+###
+# @name failAfterPaymentOrder
+POST {{gateway}}/orders/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+X-Correlation-ID: flows-afterpay-001
+
+{
+  "lines": [ { "productId": "{{productId}}", "quantity": 1 } ]
+}
+
+@failAfterPaymentOrderId = {{failAfterPaymentOrder.response.body.$.orderId}}
+
+### History: PaymentCharged, then "Payment refunded" and "Stock released" compensation steps
+GET {{gateway}}/orders/v1/orders/{{failAfterPaymentOrderId}}
+Authorization: Bearer {{customerToken}}
+
+### The payment is Refunded
+GET {{gateway}}/payments/v1/payments/orders/{{failAfterPaymentOrderId}}
+Authorization: Bearer {{adminToken}}
+
+### Back to normal
+PUT {{gateway}}/orders/v1/admin/failure-mode
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "mode": "None" }
+
+###############################################################################
+# 7. Security at the gateway
+###############################################################################
+
+### 401: admin route without a token
+PUT {{gateway}}/payments/v1/admin/failure-mode
+Content-Type: application/json
+
+{ "mode": "DeclineCharge" }
+
+### 403: admin route with a customer token
+PUT {{gateway}}/payments/v1/admin/failure-mode
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{ "mode": "DeclineCharge" }
+
+### 403: create product as a customer
+POST {{gateway}}/catalog/v1/products
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{ "name": "Not allowed", "description": "", "price": 1, "isActive": true }
+
+###############################################################################
+# 8. Chaos and retry (watch: docker compose logs -f order-api | grep "Retrying Catalog")
+###############################################################################
+
+PUT {{gateway}}/catalog/v1/chaos
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "failureRate": 0.5, "delayMs": 0 }
+
+### Still 202: Order.Api retries Catalog with exponential backoff and jitter
+POST {{gateway}}/orders/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+X-Correlation-ID: flows-chaos-001
+
+{
+  "lines": [ { "productId": "{{productId}}", "quantity": 1 } ]
+}
+
+### Turn chaos off
+PUT {{gateway}}/catalog/v1/chaos
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "failureRate": 0, "delayMs": 0 }
+
+###############################################################################
+# 9. Login rate limit: 5 per minute; send this 6 times quickly -> 429
+###############################################################################
+
+POST {{gateway}}/identity/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{customerEmail}}",
+  "password": "wrong-password"
+}
