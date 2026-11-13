@@ -60,6 +60,7 @@ public static class ObservabilityExtensions
         ArgumentNullException.ThrowIfNull(logging);
 
         logging.ClearProviders();
+        logging.Configure(options => options.ActivityTrackingOptions = ActivityTrackingOptions.None);
         logging.AddSimpleConsole(options =>
         {
             options.IncludeScopes = true;
