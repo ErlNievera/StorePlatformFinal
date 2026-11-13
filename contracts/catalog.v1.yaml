@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: Store Platform - Catalog API
+  version: "1.0"
+  description: |
+    Products that can be sold: name, description, price and active flag.
+
+    Catalog is the source of truth for what can be sold and at what price. Order.Api
+    reads price and active state from here when an order is placed (the price is
+    snapshotted onto the order line), and Inventory.Api validates product ids here
+    before creating a stock record. Both use a client generated from this contract.
+
+    Paths are relative to a server URL that already contains the API version:
+    the service serves them under `/api/v1`, and the gateway exposes them under
+    `/catalog/v1`.
+
+    Correlation: clients may send an `X-Correlation-ID` request header (the gateway
+    always sets one). The service reuses it, or generates one when it is missing,
+    and returns it in the `X-Correlation-ID` response header. Every error response
+    is an RFC 7807 Problem Details document carrying the same value in a
+    `correlationId` extension.
+  contact:
+    name: Stefan Pimentel
+servers:
+  - url: http://localhost:5000/catalog/v1
+    description: Through the Ocelot gateway (the only entry point for clients)
+  - url: http://localhost:5002/api/v1
+    description: Catalog.Api directly (development Swagger only)
+tags:
+  - name: Products
+    description: Browse and manage products
+  - name: Chaos
+    description: Development-only fault injection used to demonstrate retries and the circuit breaker
+paths:
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products
+      description: |
+        Public. Returns active products ordered by name. With `includeInactive=true`
+        inactive products are included too; that option requires the `Admin` role
+        (401 without a token, 403 for other roles).
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: includeInactive
+          in: query
+          required: false
+          description: Include inactive products (Admin only)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Products ordered by name
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Create a product
+      description: Admin only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+            example:
+              name: Angelicum Lapel Pin
+              description: Enamel pin with the college seal
+              price: 149.00
+              currency: PHP
+              isActive: true
+      responses:
+        '201':
+          description: The created product
+          headers:
+            Location:
+              description: URL of the new product
+              schema:
+                type: string
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /products/{productId}:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        description: Product id
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Get one product
+      description: |
+        Public. Returns the product whether or not it is active, so callers such as
+        Order.Api can tell "inactive" (409 for them) from "does not exist" (404).
+      security: []
+      responses:
+        '200':
+          description: The product
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update a product
+      description: Admin only. Replaces name, description, price, currency and active flag.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '200':
+          description: The updated product
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /chaos:
+    get:
+      tags: [Chaos]
+      operationId: getChaosSettings
+      summary: Read the fault-injection settings
+      description: Admin only. Available only when Catalog.Api runs in the Development environment (404 otherwise).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current settings
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Chaos]
+      operationId: setChaosSettings
+      summary: Inject failures and latency into product reads
+      description: |
+        Admin only, Development environment only. `failureRate` is the share of
+        product requests (0 to 1) answered with 503; `delayMs` is added latency per
+        request. Set both to 0 to turn chaos off. Used to show the resilience
+        handler in Order.Api and Inventory.Api retrying and recovering.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChaosSettings'
+            example:
+              failureRate: 0.5
+              delayMs: 0
+      responses:
+        '200':
+          description: Settings after the change
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity. Write operations and chaos require the `Admin` role.
+  headers:
+    CorrelationId:
+      description: Correlation id of the request (echoed or generated)
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token was supplied
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: The caller is authenticated but lacks the Admin role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: The product does not exist
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Another product already uses this name
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: Catalog.Api or its database is unavailable (or chaos mode injected a failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    Product:
+      type: object
+      required: [productId, name, description, price, currency, isActive, createdAt, updatedAt]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Current unit price
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO 4217 code
+          example: PHP
+        isActive:
+          type: boolean
+          description: Only active products can be ordered
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        productId: ac000000-0000-4000-a000-000000000001
+        name: UST Angelicum College Hoodie
+        description: Heavyweight navy hoodie with the gold college seal
+        price: 1299.00
+        currency: PHP
+        isActive: true
+        createdAt: '2026-11-13T08:00:00Z'
+        updatedAt: '2026-11-13T08:00:00Z'
+    ProductRequest:
+      type: object
+      required: [name, description, price, isActive]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 1000000
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: PHP
+        isActive:
+          type: boolean
+    ChaosSettings:
+      type: object
+      required: [failureRate, delayMs]
+      properties:
+        failureRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Share of product requests answered with 503
+        delayMs:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 30000
+          description: Latency added to every product request
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem document with the request's correlation id
+      required: [title, status, correlationId]
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

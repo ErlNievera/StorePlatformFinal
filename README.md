@@ -72,6 +72,20 @@ src/
   Storefront/Storefront.Web
 ```
 
+## API contracts
+
+Every service is described by an OpenAPI 3.0 contract in `contracts/`, merged before its controllers were written. Controllers match the contracts (paths, operationIds, schemas, status codes), and every cross-service or Storefront call goes through a client generated from them.
+
+| Contract | Gateway base URL | Service base URL (dev) |
+|---|---|---|
+| `contracts/identity.v1.yaml` | `http://localhost:5000/identity/v1` | `http://localhost:5001/api/v1` |
+| `contracts/catalog.v1.yaml` | `http://localhost:5000/catalog/v1` | `http://localhost:5002/api/v1` |
+| `contracts/inventory.v1.yaml` | `http://localhost:5000/inventory/v1` | `http://localhost:5003/api/v1` |
+| `contracts/order.v1.yaml` | `http://localhost:5000/orders/v1` | `http://localhost:5004/api/v1` |
+| `contracts/payment.v1.yaml` | `http://localhost:5000/payments/v1` | `http://localhost:5005/api/v1` |
+
+Paths in each contract are relative to these base URLs, so a generated client switches between the gateway and a service by changing only its base address. Errors are `application/problem+json` with a `correlationId` extension.
+
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
