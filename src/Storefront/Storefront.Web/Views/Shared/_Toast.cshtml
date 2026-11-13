@@ -1,0 +1,14 @@
+@{
+    var kind = TempData[ToastExtensions.KindKey] as string;
+    var text = TempData[ToastExtensions.TextKey] as string;
+}
+@if (!string.IsNullOrEmpty(text))
+{
+    var icon = kind switch { "success" => "bi-check-circle", "danger" => "bi-exclamation-octagon", "warning" => "bi-exclamation-triangle", _ => "bi-info-circle" };
+    <div class="toast align-items-center text-bg-@(kind ?? "info")" role="@(kind == "danger" ? "alert" : "status")" aria-live="@(kind == "danger" ? "assertive" : "polite")" aria-atomic="true" data-autoshow>
+        <div class="d-flex">
+            <div class="toast-body"><i class="bi @icon me-1" aria-hidden="true"></i> @text</div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+}
