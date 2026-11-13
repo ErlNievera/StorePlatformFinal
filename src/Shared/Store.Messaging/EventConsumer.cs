@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Store.Contracts.Events;
+using Store.Observability;
 
 namespace Store.Messaging;
 
@@ -16,6 +18,10 @@ namespace Store.Messaging;
 /// <remarks>
 /// <para>At startup the consumer declares its queue, its <c>.dlq</c> and the binding for the
 /// event's routing key, then consumes with <c>autoAck: false</c>.</para>
+/// <para>The <c>X-Correlation-ID</c> header (or the AMQP correlation id, or the event's own
+/// <c>CorrelationId</c>) is restored into <see cref="ICorrelationIdAccessor"/> and a logging scope
+/// with CorrelationId, MessageId, EventType and Queue wraps the handler, so the consuming
+/// service's logs join the publishing service's logs.</para>
 /// <para>Each message is handled in a fresh DI scope (so a scoped DbContext is per message).
 /// On success it is acked. When the handler throws, the message is nacked with requeue and
 /// retried with a short backoff; after <see cref="RabbitMqOptions.MaxDeliveryAttempts"/> failed
@@ -118,6 +124,11 @@ public abstract class EventConsumer<TEvent> : BackgroundService
 
     private async Task OnReceivedAsync(IChannel channel, BasicDeliverEventArgs delivery, CancellationToken stoppingToken)
     {
+        // Restore the correlation id first, so every log line for this message (including a bad body) carries it.
+        var headerCorrelationId = ReadCorrelationId(delivery.BasicProperties);
+        new CorrelationIdAccessor().CorrelationId = headerCorrelationId;
+        using var correlationScope = headerCorrelationId is null ? null : Logger.BeginCorrelationScope(headerCorrelationId);
+
         TEvent message;
         try
         {
@@ -132,6 +143,10 @@ public abstract class EventConsumer<TEvent> : BackgroundService
             await channel.BasicNackAsync(delivery.DeliveryTag, multiple: false, requeue: false, CancellationToken.None);
             return;
         }
+
+        var correlationId = headerCorrelationId ?? Correlation.Sanitize(message.CorrelationId) ?? Correlation.NewId();
+        new CorrelationIdAccessor().CorrelationId = correlationId;
+        using var messageScope = Logger.BeginMessageScope(correlationId, message.MessageId, typeof(TEvent).Name, QueueName);
 
         try
         {
@@ -183,6 +198,26 @@ public abstract class EventConsumer<TEvent> : BackgroundService
 
             await TryNackAsync(channel, delivery.DeliveryTag, requeue: true);
         }
+    }
+
+    private static string? ReadCorrelationId(IReadOnlyBasicProperties properties)
+    {
+        if (properties.Headers is not null
+            && properties.Headers.TryGetValue(Correlation.HeaderName, out var raw))
+        {
+            var fromHeader = raw switch
+            {
+                byte[] bytes => Encoding.UTF8.GetString(bytes),
+                string text => text,
+                _ => null,
+            };
+            if (Correlation.Sanitize(fromHeader) is { } valid)
+            {
+                return valid;
+            }
+        }
+
+        return Correlation.Sanitize(properties.CorrelationId);
     }
 
     private async Task TryNackAsync(IChannel channel, ulong deliveryTag, bool requeue)
