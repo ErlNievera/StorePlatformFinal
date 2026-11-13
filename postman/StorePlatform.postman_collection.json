@@ -1,0 +1,1733 @@
+{
+  "info": {
+    "_postman_id": "6b73be9a-18b1-51d5-93ec-5666c88edb7d",
+    "name": "Store Platform",
+    "description": "Every demo flow through the Ocelot gateway (http://localhost:5000). Run the folders in order with the Collection Runner or newman. The login requests save customerToken and adminToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Browse (public)",
+      "item": [
+        {
+          "name": "List active products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/v1/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "v1",
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 with products\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().length).to.be.above(7); });",
+                  "pm.test(\"only active products\", () => pm.response.json().forEach(p => pm.expect(p.isActive).to.be.true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get one product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/v1/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "v1",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has a price\", () => pm.expect(pm.response.json().price).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List stock",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/inventory/v1/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "v1",
+                "stock"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 with stock levels\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json()[0]).to.have.property(\"quantityAvailable\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Anyone can browse; no token needed."
+    },
+    {
+      "name": "2. Register and login",
+      "item": [
+        {
+          "name": "Register a new customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/identity/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{newEmail}}\",\n  \"password\": \"Caritas2026\",\n  \"fullName\": \"Postman Shopper\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"newEmail\", `postman.${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 with a token for a Customer\", () => { pm.response.to.have.status(201); pm.expect(pm.response.json().user.roles).to.include(\"Customer\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as customer (saves customerToken)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/identity/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 with a bearer token\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().tokenType).to.eql(\"Bearer\"); });",
+                  "pm.collectionVariables.set(\"customerToken\", pm.response.json().accessToken);",
+                  "pm.environment.set(\"customerToken\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as admin (saves adminToken)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/identity/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 with the Admin role\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().user.roles).to.include(\"Admin\"); });",
+                  "pm.collectionVariables.set(\"adminToken\", pm.response.json().accessToken);",
+                  "pm.environment.set(\"adminToken\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/identity/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for the customer\", () => pm.expect(pm.response.json().roles).to.include(\"Customer\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Successful order",
+      "item": [
+        {
+          "name": "Reset payment failure mode",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"None\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is None\", () => pm.expect(pm.response.json().mode).to.eql(\"None\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset order failure mode",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"None\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is None\", () => pm.expect(pm.response.json().mode).to.eql(\"None\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "postman-happy"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 Accepted with the order in Pending\", () => {",
+                  "    pm.response.to.have.status(202);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"Pending\");",
+                  "});",
+                  "pm.test(\"X-Correlation-ID is returned\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"orderId\", pm.response.json().orderId);",
+                  "pm.collectionVariables.set(\"pollTries\", 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order status history (polls until final)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Wait between polls while the saga runs in the background.",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (tries > 0) { setTimeout(() => {}, 700); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (order.status !== \"Confirmed\" && order.status !== \"Cancelled\" && tries < 20) {",
+                  "    pm.collectionVariables.set(\"pollTries\", tries + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    return;",
+                  "}",
+                  "pm.collectionVariables.set(\"pollTries\", 0);",
+                  "pm.test(\"order reached Confirmed\", () => pm.expect(order.status).to.eql(\"Confirmed\"));",
+                  "pm.test(\"history starts with Pending\", () => pm.expect(order.history[0].status).to.eql(\"Pending\"));",
+                  "pm.test(\"went through StockReserved and PaymentCharged\", () => { const s = order.history.map(h => h.status); pm.expect(s).to.include.members([\"StockReserved\", \"PaymentCharged\", \"Confirmed\"]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "mine"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"contains the order\", () => pm.expect(pm.response.json().map(o => o.orderId)).to.include(pm.collectionVariables.get(\"orderId\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Pending -> StockReserved -> PaymentCharged -> Confirmed."
+    },
+    {
+      "name": "4. Insufficient stock",
+      "item": [
+        {
+          "name": "Order 2 of the 1-unit medal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "postman-nostock"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lines\": [\n    {\n      \"productId\": \"{{limitedProductId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 Accepted with the order in Pending\", () => {",
+                  "    pm.response.to.have.status(202);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"Pending\");",
+                  "});",
+                  "pm.test(\"X-Correlation-ID is returned\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"orderId\", pm.response.json().orderId);",
+                  "pm.collectionVariables.set(\"pollTries\", 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order cancelled, nothing charged",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Wait between polls while the saga runs in the background.",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (tries > 0) { setTimeout(() => {}, 700); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (order.status !== \"Confirmed\" && order.status !== \"Cancelled\" && tries < 20) {",
+                  "    pm.collectionVariables.set(\"pollTries\", tries + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    return;",
+                  "}",
+                  "pm.collectionVariables.set(\"pollTries\", 0);",
+                  "pm.test(\"order reached Cancelled\", () => pm.expect(order.status).to.eql(\"Cancelled\"));",
+                  "pm.test(\"history starts with Pending\", () => pm.expect(order.history[0].status).to.eql(\"Pending\"));",
+                  "pm.test(\"reason mentions stock\", () => pm.expect(order.cancellationReason).to.include(\"Insufficient stock\"));",
+                  "pm.test(\"no compensation needed\", () => pm.expect(order.history.filter(h => h.isCompensation)).to.have.length(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Payment declined (compensation: release stock)",
+      "item": [
+        {
+          "name": "Set payment failure mode DeclineCharge",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"DeclineCharge\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is DeclineCharge\", () => pm.expect(pm.response.json().mode).to.eql(\"DeclineCharge\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read payment failure mode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"is DeclineCharge\", () => pm.expect(pm.response.json().mode).to.eql(\"DeclineCharge\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place order (will be declined)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "postman-declined"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 Accepted with the order in Pending\", () => {",
+                  "    pm.response.to.have.status(202);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"Pending\");",
+                  "});",
+                  "pm.test(\"X-Correlation-ID is returned\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"orderId\", pm.response.json().orderId);",
+                  "pm.collectionVariables.set(\"pollTries\", 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order cancelled after stock release",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Wait between polls while the saga runs in the background.",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (tries > 0) { setTimeout(() => {}, 700); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (order.status !== \"Confirmed\" && order.status !== \"Cancelled\" && tries < 20) {",
+                  "    pm.collectionVariables.set(\"pollTries\", tries + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    return;",
+                  "}",
+                  "pm.collectionVariables.set(\"pollTries\", 0);",
+                  "pm.test(\"order reached Cancelled\", () => pm.expect(order.status).to.eql(\"Cancelled\"));",
+                  "pm.test(\"history starts with Pending\", () => pm.expect(order.history[0].status).to.eql(\"Pending\"));",
+                  "pm.test(\"stock was released as compensation\", () => pm.expect(order.history.some(h => h.isCompensation && h.reason.startsWith(\"Stock released\"))).to.be.true);",
+                  "pm.test(\"reason is the decline\", () => pm.expect(order.cancellationReason).to.include(\"declined\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set payment failure mode back to None",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"None\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is None\", () => pm.expect(pm.response.json().mode).to.eql(\"None\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Failure after payment (compensation: refund + release)",
+      "item": [
+        {
+          "name": "Set order failure mode FailAfterPayment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"FailAfterPayment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is FailAfterPayment\", () => pm.expect(pm.response.json().mode).to.eql(\"FailAfterPayment\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place order (fails after payment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "postman-afterpay"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 Accepted with the order in Pending\", () => {",
+                  "    pm.response.to.have.status(202);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"Pending\");",
+                  "});",
+                  "pm.test(\"X-Correlation-ID is returned\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"orderId\", pm.response.json().orderId);",
+                  "pm.collectionVariables.set(\"pollTries\", 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order cancelled after refund and release",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Wait between polls while the saga runs in the background.",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (tries > 0) { setTimeout(() => {}, 700); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "const tries = Number(pm.collectionVariables.get(\"pollTries\") || 0);",
+                  "if (order.status !== \"Confirmed\" && order.status !== \"Cancelled\" && tries < 20) {",
+                  "    pm.collectionVariables.set(\"pollTries\", tries + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    return;",
+                  "}",
+                  "pm.collectionVariables.set(\"pollTries\", 0);",
+                  "pm.test(\"order reached Cancelled\", () => pm.expect(order.status).to.eql(\"Cancelled\"));",
+                  "pm.test(\"history starts with Pending\", () => pm.expect(order.history[0].status).to.eql(\"Pending\"));",
+                  "pm.test(\"payment was charged first\", () => pm.expect(order.history.map(h => h.status)).to.include(\"PaymentCharged\"));",
+                  "pm.test(\"refund and stock release recorded\", () => { const c = order.history.filter(h => h.isCompensation).map(h => h.reason); pm.expect(c.some(r => r.startsWith(\"Payment refunded\"))).to.be.true; pm.expect(c.some(r => r.startsWith(\"Stock released\"))).to.be.true; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment shows Refunded",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/payments/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "payments",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Refunded\", () => pm.expect(pm.response.json().status).to.eql(\"Refunded\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set order failure mode back to None",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"None\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mode is None\", () => pm.expect(pm.response.json().mode).to.eql(\"None\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Security (401 and 403 at the gateway)",
+      "item": [
+        {
+          "name": "Admin route without a token -> 401",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"DeclineCharge\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 Unauthorized\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin route with a customer token -> 403",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/v1/admin/failure-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "v1",
+                "admin",
+                "failure-mode"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"DeclineCharge\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product with a customer token -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/v1/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "v1",
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Not allowed\",\n  \"description\": \"\",\n  \"price\": 1,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My orders without a token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders",
+                "mine"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 Unauthorized\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Chaos and retry",
+      "item": [
+        {
+          "name": "Catalog fails 50% of product reads",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/v1/chaos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "v1",
+                "chaos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"failureRate\": 0.5,\n  \"delayMs\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"chaos on\", () => pm.expect(pm.response.json().failureRate).to.eql(0.5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Place order anyway (Order.Api retries Catalog)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "postman-chaos"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 Accepted with the order in Pending\", () => {",
+                  "    pm.response.to.have.status(202);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"Pending\");",
+                  "});",
+                  "pm.test(\"X-Correlation-ID is returned\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"orderId\", pm.response.json().orderId);",
+                  "pm.collectionVariables.set(\"pollTries\", 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turn chaos off",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/catalog/v1/chaos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "catalog",
+                "v1",
+                "chaos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"failureRate\": 0,\n  \"delayMs\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"chaos off\", () => pm.expect(pm.response.json().failureRate).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Check the order-api logs for 'Retrying Catalog call (attempt n of 4)' with CorrelationId:postman-chaos."
+    },
+    {
+      "name": "9. Login rate limit (run last)",
+      "item": [
+        {
+          "name": "Wrong password until 429",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/identity/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempt = Number(pm.collectionVariables.get(\"loginAttempts\") || 0) + 1;",
+                  "pm.collectionVariables.set(\"loginAttempts\", attempt);",
+                  "if (pm.response.code !== 429 && attempt < 8) {",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    return;",
+                  "}",
+                  "pm.collectionVariables.set(\"loginAttempts\", 0);",
+                  "pm.test(\"429 Too Many Requests within 6 attempts\", () => { pm.response.to.have.status(429); pm.expect(attempt).to.be.at.most(6); });",
+                  "pm.test(\"clear message\", () => pm.expect(pm.response.text()).to.include(\"Too many login attempts\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "5 login attempts per minute per client; the next one gets 429. Wait a minute before logging in again."
+    }
+  ],
+  "variable": [
+    {
+      "key": "customerToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "newEmail",
+      "value": ""
+    },
+    {
+      "key": "pollTries",
+      "value": ""
+    },
+    {
+      "key": "loginAttempts",
+      "value": ""
+    }
+  ]
+}
