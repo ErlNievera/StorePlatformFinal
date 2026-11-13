@@ -9,7 +9,8 @@ namespace Store.Messaging;
 /// <summary>
 /// <see cref="IEventPublisher"/> backed by one confirm-mode channel. With publisher confirmation
 /// tracking enabled, <c>BasicPublishAsync</c> completes only after the broker acks the message and
-/// throws when it is nacked or returned as unroutable (<c>mandatory: true</c>).
+/// throws when it is nacked or, for anything but an <see cref="INotificationEvent"/>, returned as
+/// unroutable (<c>mandatory: true</c>).
 /// The event's correlation id travels in the <c>X-Correlation-ID</c> message header (and the AMQP
 /// <c>correlation_id</c> property) so the consumer can restore it.
 /// </summary>
@@ -55,7 +56,7 @@ internal sealed class RabbitMqEventPublisher(
                 await channel.BasicPublishAsync(
                     exchange: settings.ExchangeName,
                     routingKey: routingKey,
-                    mandatory: true,
+                    mandatory: integrationEvent is not INotificationEvent,
                     basicProperties: properties,
                     body: body,
                     cancellationToken: cancellationToken);
