@@ -2,5 +2,6 @@
   <Folder Name="/src/" />
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Store.Contracts.Events/Store.Contracts.Events.csproj" />
+    <Project Path="src/Shared/Store.Messaging/Store.Messaging.csproj" />
   </Folder>
 </Solution>
