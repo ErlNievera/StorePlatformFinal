@@ -72,7 +72,7 @@ public sealed class CustomerOrder
         };
         order._lines.AddRange(lines);
         order.TotalAmount = lines.Sum(l => l.LineTotal);
-        order._history.Add(new OrderStatusHistory(OrderStatus.Pending, "Order placed", isCompensation: false, now));
+        order._history.Add(new OrderStatusHistory(1, OrderStatus.Pending, "Order placed", isCompensation: false, now));
         return order;
     }
 
@@ -101,7 +101,7 @@ public sealed class CustomerOrder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(step);
         EnsureIn(OrderStatus.Cancelling);
-        _history.Add(new OrderStatusHistory(OrderStatus.Cancelling, step, isCompensation: true, now));
+        _history.Add(new OrderStatusHistory(NextSequence, OrderStatus.Cancelling, step, isCompensation: true, now));
         UpdatedAt = now;
     }
 
@@ -118,7 +118,7 @@ public sealed class CustomerOrder
         EnsureIn(allowedFrom);
         Status = target;
         UpdatedAt = now;
-        _history.Add(new OrderStatusHistory(target, reason, isCompensation: false, now));
+        _history.Add(new OrderStatusHistory(NextSequence, target, reason, isCompensation: false, now));
     }
 
     private void EnsureIn(params OrderStatus[] allowed)
@@ -128,6 +128,8 @@ public sealed class CustomerOrder
             throw new InvalidOrderTransitionException(OrderId, Status, allowed);
         }
     }
+
+    private int NextSequence => _history.Count == 0 ? 1 : _history.Max(h => h.Sequence) + 1;
 
     private static string Truncate(string reason) =>
         reason.Length <= CancellationReasonMaxLength ? reason : reason[..CancellationReasonMaxLength];

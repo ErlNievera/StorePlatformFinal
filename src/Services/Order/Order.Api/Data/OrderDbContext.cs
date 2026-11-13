@@ -58,7 +58,7 @@ public sealed class OrderDbContext(DbContextOptions<OrderDbContext> options) : D
             entity.Property(h => h.Id).ValueGeneratedNever();
             entity.Property(h => h.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(h => h.Reason).HasMaxLength(OrderStatusHistory.ReasonMaxLength);
-            entity.HasIndex(h => new { h.OrderId, h.OccurredAt });
+            entity.HasIndex(h => new { h.OrderId, h.Sequence }).IsUnique();
         });
 
         modelBuilder.Entity<OrderSagaState>(entity =>

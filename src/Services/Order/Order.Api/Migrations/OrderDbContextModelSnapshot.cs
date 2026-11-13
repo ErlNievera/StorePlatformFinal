@@ -188,6 +188,9 @@ namespace Order.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -195,7 +198,8 @@ namespace Order.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderId", "OccurredAt");
+                    b.HasIndex("OrderId", "Sequence")
+                        .IsUnique();
 
                     b.ToTable("OrderStatusHistory", (string)null);
                 });
