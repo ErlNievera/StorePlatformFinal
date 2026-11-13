@@ -47,7 +47,7 @@ public sealed class AccountController(IIdentityClient identity, ILogger<AccountC
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogInformation("Login failed with {Status}", ApiErrors.StatusOf(ex));
+            logger.LogWarning(ex, "Login failed with {Status}", ApiErrors.StatusOf(ex));
             ModelState.AddModelError(string.Empty, ApiErrors.Describe(ex));
             return View(model);
         }
@@ -79,6 +79,7 @@ public sealed class AccountController(IIdentityClient identity, ILogger<AccountC
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            logger.LogWarning(ex, "Registration failed with {Status}", ApiErrors.StatusOf(ex));
             foreach (var (field, messages) in ApiErrors.ValidationErrors(ex))
             {
                 foreach (var message in messages)
