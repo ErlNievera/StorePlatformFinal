@@ -101,7 +101,7 @@
                                     <li><span class="dropdown-item-text small text-muted">Signed in as @(isAdmin ? "Admin" : "Customer")</span></li>
                                     <li><hr class="dropdown-divider" /></li>
                                     <li>
-                                        <form method="post" action="/account/logout">
+                                        <form method="post" asp-antiforgery="true" action="/account/logout">
                                             <button type="submit" class="dropdown-item no-spinner"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Sign out</button>
                                         </form>
                                     </li>
