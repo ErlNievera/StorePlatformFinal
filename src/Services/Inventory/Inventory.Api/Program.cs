@@ -1,5 +1,8 @@
+using Inventory.Api.Application;
 using Inventory.Api.Data;
+using Inventory.Api.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Store.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +16,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
+builder.Services.AddScoped<StockReservationService>();
+
+builder.Services.AddStoreMessaging(builder.Configuration);
+builder.Services.AddEventConsumer<OrderPlacedConsumer>();
+builder.Services.AddEventConsumer<StockReleaseRequestedConsumer>();
 
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<InventoryDbContext>("database");
+    .AddDbContextCheck<InventoryDbContext>("database")
+    .AddRabbitMqHealthCheck();
 
 var app = builder.Build();
 
