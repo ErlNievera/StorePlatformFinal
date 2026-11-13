@@ -1,0 +1,429 @@
+openapi: 3.0.3
+info:
+  title: Store Platform - Order API
+  version: "1.0"
+  description: |
+    Orders, order lines and status history. Order.Api orchestrates the saga that
+    reserves stock, charges payment and confirms the order, compensating when a
+    step fails.
+
+    Placing an order validates every product against Catalog (it must exist and be
+    active) and snapshots its name and price onto the order line, then returns
+    `202 Accepted` with the order in `Pending`. The rest happens asynchronously
+    through RabbitMQ events; poll `GET /orders/{orderId}` for progress:
+
+    - success: `Pending` -> `StockReserved` -> `PaymentCharged` -> `Confirmed`
+    - insufficient stock: `Pending` -> `Cancelled`
+    - payment declined: `Pending` -> `StockReserved` -> `Cancelling` -> `Cancelled` (stock released)
+    - failure after payment: ... -> `PaymentCharged` -> `Cancelling` -> `Cancelled` (refunded, stock released)
+
+    Customers see only their own orders. Admins can read any order and switch the
+    `FailAfterPayment` failure mode.
+
+    Paths are relative to a server URL that already contains the API version:
+    the service serves them under `/api/v1`, and the gateway exposes them under
+    `/orders/v1`.
+
+    Correlation: clients may send an `X-Correlation-ID` request header (the gateway
+    always sets one). The service reuses it, or generates one when it is missing,
+    and returns it in the `X-Correlation-ID` response header. Every error response
+    is an RFC 7807 Problem Details document carrying the same value in a
+    `correlationId` extension.
+  contact:
+    name: Klarence Villar
+servers:
+  - url: http://localhost:5000/orders/v1
+    description: Through the Ocelot gateway (the only entry point for clients)
+  - url: http://localhost:5004/api/v1
+    description: Order.Api directly (development Swagger only)
+security:
+  - bearerAuth: []
+tags:
+  - name: Orders
+    description: Place orders and follow their progress
+  - name: Admin
+    description: Failure switch used to demonstrate compensation after payment
+paths:
+  /orders:
+    post:
+      tags: [Orders]
+      operationId: placeOrder
+      summary: Place an order
+      description: |
+        Customer only. Validates products against Catalog, snapshots prices and starts
+        the saga. Returns 404 when a product does not exist, 409 when one is inactive,
+        and 503 when Catalog cannot be reached after retries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+            example:
+              lines:
+                - productId: ac000000-0000-4000-a000-000000000001
+                  quantity: 1
+                - productId: ac000000-0000-4000-a000-000000000004
+                  quantity: 2
+      responses:
+        '202':
+          description: Order accepted in status Pending; the saga continues asynchronously
+          headers:
+            Location:
+              description: URL of the order
+              schema:
+                type: string
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /orders/mine:
+    get:
+      tags: [Orders]
+      operationId: listMyOrders
+      summary: List the signed-in customer's orders
+      description: Newest first.
+      responses:
+        '200':
+          description: The caller's orders
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      operationId: getOrder
+      summary: Get an order with its lines and status history
+      description: The owner or an Admin. Another customer's order returns 404.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The order
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/failure-mode:
+    get:
+      tags: [Admin]
+      operationId: getOrderFailureMode
+      summary: Read the current order failure mode
+      description: Admin only.
+      responses:
+        '200':
+          description: Current failure mode
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderFailureModeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    put:
+      tags: [Admin]
+      operationId: setOrderFailureMode
+      summary: Switch the order failure mode
+      description: |
+        Admin only. While `FailAfterPayment` is on, every order fails right after its
+        payment is charged, so the saga refunds the payment, releases the stock and
+        cancels the order. Takes effect immediately.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderFailureModeRequest'
+            example:
+              mode: FailAfterPayment
+      responses:
+        '200':
+          description: Failure mode after the change
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderFailureModeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by Identity. Placing and listing orders requires `Customer`; failure mode requires `Admin`.
+  headers:
+    CorrelationId:
+      description: Correlation id of the request (echoed or generated)
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token was supplied
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: The caller is authenticated but lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: The resource does not exist or is not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: The request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: The service or a service it depends on is unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    OrderStatus:
+      type: string
+      description: |
+        `Cancelling` means a failure happened and compensation (stock release, refund)
+        is in progress; the order ends in `Cancelled` once it has finished.
+      enum: [Pending, StockReserved, PaymentCharged, Confirmed, Cancelling, Cancelled]
+    PlaceOrderLine:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+    PlaceOrderRequest:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PlaceOrderLine'
+    OrderLine:
+      type: object
+      required: [productId, productName, unitPrice, quantity, lineTotal]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+          description: Name snapshot taken when the order was placed
+        unitPrice:
+          type: number
+          format: decimal
+          description: Price snapshot taken when the order was placed
+        quantity:
+          type: integer
+          format: int32
+        lineTotal:
+          type: number
+          format: decimal
+    OrderStatusHistoryEntry:
+      type: object
+      required: [status, occurredAt, isCompensation]
+      properties:
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        reason:
+          type: string
+          nullable: true
+          description: What happened, e.g. "Stock reserved" or "Payment declined"
+        isCompensation:
+          type: boolean
+          description: True for compensation steps (stock released, payment refunded)
+        occurredAt:
+          type: string
+          format: date-time
+    OrderSummary:
+      type: object
+      required: [orderId, status, totalAmount, currency, itemCount, createdAt, updatedAt]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalAmount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+        itemCount:
+          type: integer
+          format: int32
+        cancellationReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrderDetails:
+      type: object
+      required: [orderId, customerId, status, totalAmount, currency, lines, history, createdAt, updatedAt]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalAmount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+        cancellationReason:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+        history:
+          type: array
+          description: Oldest first
+          items:
+            $ref: '#/components/schemas/OrderStatusHistoryEntry'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrderFailureMode:
+      type: string
+      enum: [None, FailAfterPayment]
+    OrderFailureModeRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          $ref: '#/components/schemas/OrderFailureMode'
+    OrderFailureModeResponse:
+      type: object
+      required: [mode, updatedAt]
+      properties:
+        mode:
+          $ref: '#/components/schemas/OrderFailureMode'
+        updatedAt:
+          type: string
+          format: date-time
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem document with the request's correlation id
+      required: [title, status, correlationId]
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

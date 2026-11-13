@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: Store Platform - Identity API
+  version: "1.0"
+  description: |
+    Customer registration, login and the JWTs every other service trusts.
+
+    Tokens are HMAC-SHA256 JWTs signed with the shared key from `JWT_SIGNING_KEY`,
+    with issuer `JWT_ISSUER` and audience `JWT_AUDIENCE`. Claims: `sub` (user id,
+    uuid), `email`, `name` and one `role` claim per role (`Customer` or `Admin`).
+    The gateway and every service validate them.
+
+    Self-registration always creates a `Customer`. The `Admin` and demo `Customer`
+    accounts are seeded at startup from `SEED_ADMIN_*` and `SEED_CUSTOMER_*`.
+
+    Paths are relative to a server URL that already contains the API version:
+    the service serves them under `/api/v1`, and the gateway exposes them under
+    `/identity/v1`. The gateway rate-limits `POST /auth/login` to 5 requests per
+    minute per client and answers 429 beyond that.
+
+    Correlation: clients may send an `X-Correlation-ID` request header (the gateway
+    always sets one). The service reuses it, or generates one when it is missing,
+    and returns it in the `X-Correlation-ID` response header. Every error response
+    is an RFC 7807 Problem Details document carrying the same value in a
+    `correlationId` extension.
+  contact:
+    name: Klarence Villar
+servers:
+  - url: http://localhost:5000/identity/v1
+    description: Through the Ocelot gateway (the only entry point for clients)
+  - url: http://localhost:5001/api/v1
+    description: Identity.Api directly (development Swagger only)
+tags:
+  - name: Auth
+    description: Registration, login and the current user
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Create a customer account and sign in
+      description: Public. Creates a `Customer` and returns a token so the user is signed in right away.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: juan.delacruz@example.com
+              password: Caritas#2026
+              fullName: Juan Dela Cruz
+      responses:
+        '201':
+          description: Account created; token for the new user
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Sign in and receive a JWT
+      description: Public. Rate-limited at the gateway (5 per minute per client).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Signed in
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get the signed-in user
+      description: Any authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The current user
+          headers:
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  headers:
+    CorrelationId:
+      description: Correlation id of the request (echoed or generated)
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token was supplied
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: The resource does not exist or is not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: The request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    TooManyRequests:
+      description: Too many attempts; returned by the gateway's rate limit
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: The service or a service it depends on is unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 256
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: At least 8 characters with an upper-case letter, a lower-case letter and a digit
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 256
+        password:
+          type: string
+          format: password
+          maxLength: 128
+    UserRole:
+      type: string
+      enum: [Customer, Admin]
+    UserProfile:
+      type: object
+      required: [userId, email, fullName, roles]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+    AuthResponse:
+      type: object
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken:
+          type: string
+          description: "JWT to send in the header `Authorization: Bearer <token>`"
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserProfile'
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem document with the request's correlation id
+      required: [title, status, correlationId]
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
