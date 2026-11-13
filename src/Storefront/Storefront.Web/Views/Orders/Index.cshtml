@@ -1,0 +1,48 @@
+@model OrdersViewModel
+@{
+    ViewData["Title"] = "My Orders";
+}
+<h1 class="h2 mb-3"><i class="bi bi-bag-check" aria-hidden="true"></i> My Orders</h1>
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-warning" role="status">@Model.Error</div>
+}
+@if (Model.Orders.Count == 0 && string.IsNullOrEmpty(Model.Error))
+{
+    <section class="empty-state ac-card">
+        <div class="icon mb-2"><i class="bi bi-receipt" aria-hidden="true"></i></div>
+        <h2 class="h4">No orders yet</h2>
+        <p class="text-muted">When you place an order it shows up here with every step it went through.</p>
+        <a class="btn btn-primary" href="/">Browse the store</a>
+    </section>
+}
+else if (Model.Orders.Count > 0)
+{
+    <div class="ac-card p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <caption class="visually-hidden">Your orders, newest first</caption>
+                <thead><tr><th scope="col" class="ps-3">Order</th><th scope="col">Placed</th><th scope="col">Items</th><th scope="col" class="text-end">Total</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Details</span></th></tr></thead>
+                <tbody class="stagger">
+                    @foreach (var o in Model.Orders)
+                    {
+                        <tr>
+                            <td class="ps-3"><code>@o.OrderId.ToString()[..8]</code></td>
+                            <td><time datetime="@o.CreatedAt.ToString("O")">@o.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</time></td>
+                            <td>@o.ItemCount</td>
+                            <td class="text-end">@Money.Format(o.TotalAmount, o.Currency)</td>
+                            <td>
+                                <span class="status-pill status-@o.Status">@o.Status</span>
+                                @if (!string.IsNullOrEmpty(o.CancellationReason))
+                                {
+                                    <div class="small text-muted">@o.CancellationReason</div>
+                                }
+                            </td>
+                            <td class="text-end pe-3"><a class="btn btn-sm btn-outline-primary" href="/orders/@o.OrderId">View timeline</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

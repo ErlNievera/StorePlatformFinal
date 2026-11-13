@@ -127,7 +127,11 @@
           }
           lastStatus = data.status;
           if (!data.final) { setTimeout(poll, 2000); }
-          else { container.setAttribute("data-final", "true"); }
+          else {
+            container.setAttribute("data-final", "true");
+            var note = document.getElementById("pollingNote");
+            if (note) { note.remove(); }
+          }
         })
         .catch(function () {
           failures += 1;
