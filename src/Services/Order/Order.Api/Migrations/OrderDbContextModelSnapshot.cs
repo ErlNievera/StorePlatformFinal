@@ -124,6 +124,9 @@ namespace Order.Api.Migrations
                     b.Property<bool>("RefundPending")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("RepublishCount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -145,6 +148,8 @@ namespace Order.Api.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("OrderId");
+
+                    b.HasIndex("Step", "UpdatedAt");
 
                     b.ToTable("OrderSagaStates", (string)null);
                 });
