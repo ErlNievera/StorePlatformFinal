@@ -1,0 +1,213 @@
+# Store Platform - the whole system in one compose project.
+# Run once: setup.cmd (creates .env from .env.example), then: docker compose up --build
+# Every value comes from .env; databases are reachable only on the compose network.
+
+name: storeplatform
+
+x-dotnet-env: &dotnet-env
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+  Logging__LogLevel__System.Net.Http.HttpClient: Warning
+  Logging__LogLevel__Polly: Warning
+  Jwt__Issuer: ${JWT_ISSUER}
+  Jwt__Audience: ${JWT_AUDIENCE}
+  Jwt__SigningKey: ${JWT_SIGNING_KEY}
+  Jwt__ExpiresMinutes: ${JWT_EXPIRES_MINUTES}
+
+x-rabbitmq-env: &rabbitmq-env
+  RabbitMq__HostName: ${RABBITMQ_HOST}
+  RabbitMq__Port: ${RABBITMQ_PORT}
+  RabbitMq__UserName: ${RABBITMQ_USER}
+  RabbitMq__Password: ${RABBITMQ_PASSWORD}
+  RabbitMq__ExchangeName: ${RABBITMQ_EXCHANGE}
+  RabbitMq__DeadLetterExchangeName: ${RABBITMQ_DLX}
+  RabbitMq__MaxDeliveryAttempts: ${RABBITMQ_MAX_DELIVERY_ATTEMPTS}
+
+x-postgres: &postgres
+  image: postgres:16-alpine
+  restart: unless-stopped
+  networks: [store-net]
+
+x-api-healthcheck: &api-healthcheck
+  test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 10
+  start_period: 30s
+
+services:
+  # ---------- databases (one per service, not published to the host) ----------
+  identity-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${IDENTITY_DB}
+    volumes: [identity-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${IDENTITY_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  catalog-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${CATALOG_DB}
+    volumes: [catalog-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${CATALOG_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  inventory-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${INVENTORY_DB}
+    volumes: [inventory-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${INVENTORY_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  order-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${ORDER_DB}
+    volumes: [order-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${ORDER_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  payment-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PAYMENT_DB}
+    volumes: [payment-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${PAYMENT_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- services (Swagger on 5001-5005 in Development) ----------
+  identity-api:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/Identity.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__IdentityDb: Host=identity-db;Port=5432;Database=${IDENTITY_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Seed__AdminEmail: ${SEED_ADMIN_EMAIL}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
+      Seed__CustomerEmail: ${SEED_CUSTOMER_EMAIL}
+      Seed__CustomerPassword: ${SEED_CUSTOMER_PASSWORD}
+    ports: ["${IDENTITY_PORT}:8080"]
+    depends_on:
+      identity-db: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+  catalog-api:
+    build:
+      context: .
+      dockerfile: src/Services/Catalog/Catalog.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__CatalogDb: Host=catalog-db;Port=5432;Database=${CATALOG_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    ports: ["${CATALOG_PORT}:8080"]
+    depends_on:
+      catalog-db: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+  inventory-api:
+    build:
+      context: .
+      dockerfile: src/Services/Inventory/Inventory.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: [*dotnet-env, *rabbitmq-env]
+      ConnectionStrings__InventoryDb: Host=inventory-db;Port=5432;Database=${INVENTORY_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      RabbitMq__ClientProvidedName: inventory-api
+      Services__Catalog__BaseUrl: http://catalog-api:8080/api/v1/
+    ports: ["${INVENTORY_PORT}:8080"]
+    depends_on:
+      inventory-db: { condition: service_healthy }
+      catalog-api: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+  order-api:
+    build:
+      context: .
+      dockerfile: src/Services/Order/Order.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: [*dotnet-env, *rabbitmq-env]
+      ConnectionStrings__OrderDb: Host=order-db;Port=5432;Database=${ORDER_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      RabbitMq__ClientProvidedName: order-api
+      Services__Catalog__BaseUrl: http://catalog-api:8080/api/v1/
+    ports: ["${ORDER_PORT}:8080"]
+    depends_on:
+      order-db: { condition: service_healthy }
+      catalog-api: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+  payment-api:
+    build:
+      context: .
+      dockerfile: src/Services/Payment/Payment.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: [*dotnet-env, *rabbitmq-env]
+      ConnectionStrings__PaymentDb: Host=payment-db;Port=5432;Database=${PAYMENT_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      RabbitMq__ClientProvidedName: payment-api
+    ports: ["${PAYMENT_PORT}:8080"]
+    depends_on:
+      payment-db: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+  # ---------- edge ----------
+  gateway:
+    build:
+      context: .
+      dockerfile: src/Gateway/Gateway.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *dotnet-env
+    ports: ["${GATEWAY_PORT}:8080"]
+    depends_on:
+      identity-api: { condition: service_healthy }
+      catalog-api: { condition: service_healthy }
+      inventory-api: { condition: service_healthy }
+      order-api: { condition: service_healthy }
+      payment-api: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
+networks:
+  store-net:
+    driver: bridge
+
+volumes:
+  identity-db-data:
+  catalog-db-data:
+  inventory-db-data:
+  order-db-data:
+  payment-db-data:
