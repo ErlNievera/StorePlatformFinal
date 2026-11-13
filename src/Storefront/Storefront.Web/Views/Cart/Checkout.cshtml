@@ -1,0 +1,36 @@
+@model CartViewModel
+@{
+    ViewData["Title"] = "Checkout";
+}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="ac-card p-4 p-md-5">
+            <h1 class="h2">Review your order</h1>
+            <div class="gold-rule my-3"></div>
+            <table class="table align-middle">
+                <caption class="visually-hidden">Items in this order</caption>
+                <thead><tr><th scope="col">Product</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Price</th><th scope="col" class="text-end">Total</th></tr></thead>
+                <tbody>
+                    @foreach (var line in Model.Lines)
+                    {
+                        <tr>
+                            <td>@line.Name</td>
+                            <td class="text-end">@line.Quantity</td>
+                            <td class="text-end">@Money.Format(line.UnitPrice, line.Currency)</td>
+                            <td class="text-end">@Money.Format(line.LineTotal, line.Currency)</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot><tr><th colspan="3" class="text-end">Total</th><th class="text-end fs-5">@Money.Format(Model.Total, Model.Currency)</th></tr></tfoot>
+            </table>
+            <div class="alert alert-info d-flex gap-2" role="note">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                <div>After you place the order we reserve the stock, take the payment and confirm it. You will see each step live on the next page.</div>
+            </div>
+            <form method="post" asp-antiforgery="true" action="/checkout" class="d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn btn-gold btn-lg"><i class="bi bi-bag-check" aria-hidden="true"></i> Place order</button>
+                <a class="btn btn-outline-primary btn-lg" href="/cart">Back to cart</a>
+            </form>
+        </div>
+    </div>
+</div>

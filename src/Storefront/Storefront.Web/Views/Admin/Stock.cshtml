@@ -1,0 +1,42 @@
+@model AdminStockViewModel
+@{
+    ViewData["Title"] = "Stock";
+}
+<h1 class="h2 mb-1"><i class="bi bi-boxes" aria-hidden="true"></i> Stock</h1>
+<p class="text-muted">Add units with a positive number, remove them with a negative one. Reserved units belong to orders in progress or confirmed orders.</p>
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-warning" role="status">@Model.Error</div>
+}
+@if (Model.Rows.Count > 0)
+{
+    <div class="ac-card p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <caption class="visually-hidden">Stock per product</caption>
+                <thead><tr><th scope="col" class="ps-3">Product</th><th scope="col" class="text-end">On hand</th><th scope="col" class="text-end">Reserved</th><th scope="col" class="text-end">Available</th><th scope="col">Adjust</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td class="ps-3">@row.Name @if (!row.IsActive) { <span class="badge badge-inactive ms-1">Hidden</span> }</td>
+                            <td class="text-end">@row.OnHand</td>
+                            <td class="text-end">@row.Reserved</td>
+                            <td class="text-end"><span class="badge rounded-pill @(row.Available == 0 ? "badge-out" : row.Available <= 5 ? "badge-low" : "badge-stock")">@row.Available</span></td>
+                            <td>
+                                <form method="post" asp-antiforgery="true" action="/admin/stock/@row.ProductId" class="d-flex flex-wrap gap-2">
+                                    <input type="hidden" name="name" value="@row.Name" />
+                                    <label class="visually-hidden" for="delta-@row.ProductId">Units to add or remove for @row.Name</label>
+                                    <input id="delta-@row.ProductId" name="delta" type="number" class="form-control form-control-sm" style="width: 6rem" placeholder="+10" required />
+                                    <label class="visually-hidden" for="reason-@row.ProductId">Reason</label>
+                                    <input id="reason-@row.ProductId" name="reason" class="form-control form-control-sm" style="width: 11rem" placeholder="Reason" maxlength="200" />
+                                    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

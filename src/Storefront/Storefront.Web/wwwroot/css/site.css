@@ -1,0 +1,211 @@
+/* =====================================================================
+   UST Angelicum College Store - theme
+   Palette as CSS variables only; Bootstrap 5 is themed through its own variables.
+   Text colours meet WCAG AA on their backgrounds (blue-dark and gold-dark for text on light).
+   ===================================================================== */
+:root {
+  --ac-blue: #0093D8;
+  --ac-blue-dark: #006FA6;
+  --ac-blue-light: #E6F4FB;
+  --ac-gold: #C4A20B;
+  --ac-gold-dark: #8C7306;
+  --ac-gold-light: #F3E6C8;
+  --ac-sun: #F9C200;
+  --ac-red: #E3161E;
+  --ac-ink: #1C1C1B;
+  --ac-white: #FFFFFF;
+  --ac-surface: #F7F9FB;
+  --ac-success: #1E8E5A;
+
+  --ac-gold-gradient: linear-gradient(135deg, #C4A20B 0%, #F3E6C8 50%, #C4A20B 100%);
+  --ac-font-brand: "Cinzel", "Times New Roman", serif;
+  --ac-font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* semantic tokens (light) */
+  --ac-bg: var(--ac-surface);
+  --ac-card: var(--ac-white);
+  --ac-text: var(--ac-ink);
+  --ac-text-muted: #4B5563;
+  --ac-border: #D9E2EA;
+  --ac-link: var(--ac-blue-dark);
+  --ac-accent-text: var(--ac-gold-dark);
+  --ac-danger-text: #B3121A;
+  --ac-shadow: 0 6px 24px rgba(28, 28, 27, 0.08);
+  --ac-radius: 14px;
+
+  /* Bootstrap bridge */
+  --bs-body-font-family: var(--ac-font-body);
+  --bs-body-bg: var(--ac-bg);
+  --bs-body-color: var(--ac-text);
+  --bs-primary: var(--ac-blue-dark);
+  --bs-primary-rgb: 0, 111, 166;
+  --bs-link-color: var(--ac-link);
+  --bs-link-color-rgb: 0, 111, 166;
+  --bs-link-hover-color: var(--ac-blue);
+  --bs-border-color: var(--ac-border);
+  --bs-success: var(--ac-success);
+  --bs-success-rgb: 30, 142, 90;
+  --bs-danger: var(--ac-red);
+  --bs-danger-rgb: 227, 22, 30;
+  --bs-warning: var(--ac-sun);
+  --bs-focus-ring-color: rgba(249, 194, 0, 0.6);
+}
+
+[data-bs-theme="dark"] {
+  --ac-bg: var(--ac-ink);
+  --ac-card: #26282A;
+  --ac-text: #F2F4F6;
+  --ac-text-muted: #B8C0C8;
+  --ac-border: #3A3D40;
+  --ac-link: #4DB8EC;
+  --ac-accent-text: var(--ac-gold-light);
+  --ac-danger-text: #FF7A7F;
+  --ac-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+
+  --bs-body-bg: var(--ac-bg);
+  --bs-body-color: var(--ac-text);
+  --bs-link-color: var(--ac-link);
+  --bs-link-color-rgb: 77, 184, 236;
+  --bs-border-color: var(--ac-border);
+  --bs-secondary-color: var(--ac-text-muted);
+  --bs-tertiary-bg: #2E3134;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--ac-font-body);
+  background: var(--ac-bg);
+  color: var(--ac-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+main { flex: 1 0 auto; }
+
+h1, h2, h3, .brand, .display-font { font-family: var(--ac-font-brand); letter-spacing: 0.02em; }
+h1, h2 { font-weight: 700; }
+a { color: var(--ac-link); }
+.text-muted, .form-text { color: var(--ac-text-muted) !important; }
+.text-accent { color: var(--ac-accent-text); }
+
+/* Focus ring: sun yellow, always visible for keyboard users */
+:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.nav-link:focus-visible {
+  outline: 3px solid var(--ac-sun) !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+.skip-link {
+  position: absolute; left: 1rem; top: -3rem; z-index: 2000;
+  background: var(--ac-sun); color: var(--ac-ink); padding: .5rem 1rem; border-radius: 8px; font-weight: 600;
+}
+.skip-link:focus { top: 1rem; }
+
+/* Buttons */
+.btn { border-radius: 10px; font-weight: 600; }
+.btn-primary { --bs-btn-bg: var(--ac-blue-dark); --bs-btn-border-color: var(--ac-blue-dark); --bs-btn-hover-bg: #005B88; --bs-btn-hover-border-color: #005B88; --bs-btn-active-bg: #004C72; --bs-btn-disabled-bg: var(--ac-blue-dark); }
+.btn-gold { background: var(--ac-gold-gradient); background-size: 200% 200%; color: var(--ac-ink); border: 1px solid var(--ac-gold-dark); }
+.btn-gold:hover { background-position: 100% 0; color: var(--ac-ink); }
+.btn-outline-primary { --bs-btn-color: var(--ac-link); --bs-btn-border-color: var(--ac-link); --bs-btn-hover-bg: var(--ac-blue-dark); --bs-btn-hover-border-color: var(--ac-blue-dark); }
+
+/* Navbar */
+.ac-navbar { background: var(--ac-blue-dark); box-shadow: 0 2px 0 var(--ac-gold); }
+.ac-navbar .navbar-brand, .ac-navbar .nav-link { color: var(--ac-white); }
+.ac-navbar .nav-link:hover, .ac-navbar .nav-link.active { color: var(--ac-gold-light); }
+.ac-navbar .navbar-toggler { border-color: rgba(255,255,255,.6); }
+.ac-navbar .navbar-toggler-icon { filter: invert(1); }
+.brand { display: flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.15rem; color: var(--ac-white); text-decoration: none; }
+.brand small { display: block; font-family: var(--ac-font-body); font-weight: 500; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.brand-logo { height: 42px; width: 42px; object-fit: contain; }
+.brand-monogram {
+  display: inline-grid; place-items: center; height: 42px; width: 42px; border-radius: 50%;
+  background: var(--ac-gold-gradient); color: var(--ac-ink); font-family: var(--ac-font-brand); font-weight: 700; font-size: 1rem;
+  border: 2px solid var(--ac-white);
+}
+.cart-badge { background: var(--ac-sun); color: var(--ac-ink); }
+.theme-toggle { color: var(--ac-white); border: 1px solid rgba(255,255,255,.5); }
+.theme-toggle:hover { color: var(--ac-ink); background: var(--ac-gold-light); }
+
+/* Hero */
+.hero {
+  background: linear-gradient(120deg, var(--ac-blue-dark) 0%, var(--ac-blue) 60%, #35B1E6 100%);
+  color: var(--ac-white); border-radius: var(--ac-radius); padding: clamp(1.5rem, 4vw, 3rem); position: relative; overflow: hidden;
+}
+.hero::after { content: ""; position: absolute; inset: auto -10% -60% auto; width: 50%; aspect-ratio: 1; border-radius: 50%; background: var(--ac-gold-gradient); opacity: .25; }
+.hero .motto { color: var(--ac-gold-light); font-family: var(--ac-font-brand); letter-spacing: .2em; text-transform: uppercase; font-size: .85rem; }
+
+/* Cards */
+.ac-card { background: var(--ac-card); border: 1px solid var(--ac-border); border-radius: var(--ac-radius); box-shadow: var(--ac-shadow); }
+.product-card { transition: transform .2s ease, box-shadow .2s ease; height: 100%; }
+.product-card:hover, .product-card:focus-within { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0, 111, 166, .18); }
+.product-art {
+  aspect-ratio: 4 / 3; border-radius: calc(var(--ac-radius) - 4px) calc(var(--ac-radius) - 4px) 0 0;
+  display: grid; place-items: center; font-size: 3rem; color: var(--ac-blue-dark);
+  background: radial-gradient(circle at 30% 20%, var(--ac-white) 0%, var(--ac-blue-light) 70%);
+}
+[data-bs-theme="dark"] .product-art { background: radial-gradient(circle at 30% 20%, #33393E 0%, #1F2933 70%); color: var(--ac-link); }
+.price { font-weight: 700; font-size: 1.15rem; color: var(--ac-text); }
+.badge-stock { background: var(--ac-success); color: var(--ac-white); }
+.badge-low { background: var(--ac-sun); color: var(--ac-ink); }
+.badge-out { background: #6B7280; color: var(--ac-white); }
+.badge-inactive { background: var(--ac-ink); color: var(--ac-white); }
+[data-bs-theme="dark"] .badge-inactive { background: #4B5563; }
+
+/* Status pills */
+.status-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .7rem; border-radius: 999px; font-weight: 600; font-size: .85rem; }
+.status-Pending { background: var(--ac-blue-light); color: var(--ac-blue-dark); }
+.status-StockReserved, .status-PaymentCharged { background: var(--ac-gold-light); color: #5C4B03; }
+.status-Confirmed { background: #D9F2E6; color: #145C3B; }
+.status-Cancelling { background: #FDE2E3; color: #8F0E14; }
+.status-Cancelled { background: #FDE2E3; color: #8F0E14; }
+
+/* Saga timeline */
+.timeline { list-style: none; padding-left: 0; margin: 0; position: relative; }
+.timeline::before { content: ""; position: absolute; left: 15px; top: 6px; bottom: 6px; width: 2px; background: var(--ac-border); }
+.timeline-step { position: relative; padding: 0 0 1.25rem 3rem; }
+.timeline-dot {
+  position: absolute; left: 4px; top: 2px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-size: .75rem; color: var(--ac-white); background: var(--ac-blue-dark);
+}
+.timeline-step.done .timeline-dot { background: var(--ac-success); }
+.timeline-step.compensation .timeline-dot, .timeline-step.failed .timeline-dot { background: var(--ac-red); }
+.timeline-step.compensation .timeline-title, .timeline-step.failed .timeline-title { color: var(--ac-danger-text); }
+.timeline-step.upcoming .timeline-dot { background: transparent; border: 2px dashed var(--ac-border); color: var(--ac-text-muted); }
+.timeline-step.upcoming .timeline-title { color: var(--ac-text-muted); }
+.timeline-title { font-weight: 600; }
+.timeline-time { font-size: .8rem; color: var(--ac-text-muted); }
+
+/* Auth split screen */
+.auth-split { min-height: calc(100vh - 160px); }
+.auth-art {
+  background: linear-gradient(160deg, var(--ac-blue-dark) 0%, var(--ac-blue) 100%);
+  color: var(--ac-white); border-radius: var(--ac-radius); padding: 3rem; display: flex; flex-direction: column; justify-content: space-between;
+  position: relative; overflow: hidden;
+}
+.auth-art .motto-line { font-family: var(--ac-font-brand); font-size: clamp(1.6rem, 3vw, 2.4rem); line-height: 1.2; }
+.auth-art .virtues span { display: inline-block; padding: .25rem .8rem; margin: 0 .3rem .4rem 0; border-radius: 999px; background: rgba(255,255,255,.15); border: 1px solid var(--ac-gold-light); }
+.gold-rule { height: 4px; width: 80px; background: var(--ac-gold-gradient); border-radius: 4px; }
+
+/* Tables */
+.table { --bs-table-bg: transparent; color: var(--ac-text); }
+.table > :not(caption) > * > * { border-color: var(--ac-border); }
+
+/* Empty states */
+.empty-state { text-align: center; padding: 3rem 1rem; }
+.empty-state .icon { font-size: 3rem; color: var(--ac-accent-text); }
+
+/* Footer */
+.ac-footer { background: var(--ac-ink); color: #E5E7EB; border-top: 4px solid var(--ac-gold); }
+.ac-footer a { color: var(--ac-gold-light); }
+
+/* Admin chaos */
+.mode-card.active-mode { border: 2px solid var(--ac-red); }
+.mode-card .mode-state { font-weight: 700; }
+
+/* Toast container */
+.toast-stack { position: fixed; top: 5rem; right: 1rem; z-index: 1080; display: flex; flex-direction: column; gap: .5rem; max-width: min(380px, calc(100vw - 2rem)); }
+.toast { border: none; box-shadow: var(--ac-shadow); }
+.toast .toast-body { font-weight: 500; }

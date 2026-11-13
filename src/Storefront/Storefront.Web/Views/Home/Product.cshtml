@@ -1,0 +1,57 @@
+@model ProductDetailsViewModel
+@{
+    var p = Model.Product;
+    ViewData["Title"] = p.Name;
+    var max = Model.Available is > 0 ? Math.Min(Model.Available.Value, CartService.MaxQuantity) : CartService.MaxQuantity;
+}
+<nav aria-label="Breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Shop</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@p.Name</li>
+    </ol>
+</nav>
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="ac-card product-art" style="font-size: 7rem; border-radius: var(--ac-radius)"><i class="bi @ProductIcon.For(p.Name)" aria-hidden="true"></i></div>
+    </div>
+    <div class="col-md-6">
+        <div class="ac-card p-4 h-100">
+            @if (!p.IsActive)
+            {
+                <span class="badge badge-inactive mb-2">Hidden from the store</span>
+            }
+            <h1 class="h2">@p.Name</h1>
+            <div class="gold-rule my-3"></div>
+            <p class="lead">@p.Description</p>
+            <p class="display-6 price mb-3">@Money.Format(p.Price, p.Currency)</p>
+            <p class="mb-4">
+                @if (Model.Available is null)
+                {
+                    <span class="text-muted"><i class="bi bi-question-circle" aria-hidden="true"></i> Stock information is temporarily unavailable.</span>
+                }
+                else if (Model.Available == 0)
+                {
+                    <span class="badge rounded-pill badge-out fs-6">Sold out</span>
+                }
+                else
+                {
+                    <span class="badge rounded-pill @(Model.Available <= 5 ? "badge-low" : "badge-stock") fs-6">@Model.Available available</span>
+                }
+            </p>
+            <form method="post" asp-antiforgery="true" action="/cart/add" class="row g-2 align-items-end">
+                <input type="hidden" name="productId" value="@p.ProductId" />
+                <input type="hidden" name="returnUrl" value="/products/@p.ProductId" />
+                <div class="col-auto">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input id="quantity" name="quantity" type="number" class="form-control" value="1" min="1" max="@max" required style="width: 7rem" />
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary btn-lg w-100" disabled="@(Model.Available == 0 || !p.IsActive)">
+                        <i class="bi bi-cart-plus" aria-hidden="true"></i> Add to cart
+                    </button>
+                </div>
+            </form>
+            <p class="small text-muted mt-3 mb-0">The price you see is captured on your order the moment you place it.</p>
+        </div>
+    </div>
+</div>

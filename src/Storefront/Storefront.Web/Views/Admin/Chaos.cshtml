@@ -1,0 +1,79 @@
+@model AdminChaosViewModel
+@{
+    ViewData["Title"] = "Chaos & Saga Testing";
+    var declining = Model.PaymentMode == "DeclineCharge";
+    var failing = Model.OrderMode == "FailAfterPayment";
+    var catalogChaos = (Model.CatalogFailureRate ?? 0) > 0 || (Model.CatalogDelayMs ?? 0) > 0;
+}
+<h1 class="h2 mb-1"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Chaos &amp; Saga Testing</h1>
+<p class="text-muted">Switch failures on, place an order as a customer, and watch the saga compensate on the order page. Changes take effect immediately; nothing restarts.</p>
+@foreach (var problem in Model.Problems)
+{
+    <div class="alert alert-warning" role="status">@problem</div>
+}
+<div class="row g-4 stagger">
+    <div class="col-lg-4">
+        <section class="ac-card p-4 h-100 mode-card @(declining ? "active-mode" : "")" aria-labelledby="paymentHeading">
+            <h2 id="paymentHeading" class="h5"><i class="bi bi-credit-card" aria-hidden="true"></i> Payment</h2>
+            <p class="small text-muted">DeclineCharge refuses every new charge. The saga releases the reserved stock and cancels the order.</p>
+            <p>Current mode: <span class="mode-state @(declining ? "text-danger" : "text-success")">@(Model.PaymentMode ?? "unknown")</span></p>
+            @if (Model.PaymentModeUpdatedAt is { } p) { <p class="small text-muted">Changed <time datetime="@p.ToString("O")">@p.ToLocalTime().ToString("MMM d, h:mm:ss tt")</time></p> }
+            <form method="post" asp-antiforgery="true" action="/admin/chaos/payment" class="d-flex gap-2 flex-wrap">
+                <button name="mode" value="DeclineCharge" class="btn btn-danger" disabled="@declining">Decline charges</button>
+                <button name="mode" value="None" class="btn btn-outline-primary" disabled="@(!declining)">Back to normal</button>
+            </form>
+        </section>
+    </div>
+    <div class="col-lg-4">
+        <section class="ac-card p-4 h-100 mode-card @(failing ? "active-mode" : "")" aria-labelledby="orderHeading">
+            <h2 id="orderHeading" class="h5"><i class="bi bi-receipt" aria-hidden="true"></i> Order</h2>
+            <p class="small text-muted">FailAfterPayment makes orders fail right after the charge. The saga refunds the payment, releases the stock and cancels.</p>
+            <p>Current mode: <span class="mode-state @(failing ? "text-danger" : "text-success")">@(Model.OrderMode ?? "unknown")</span></p>
+            @if (Model.OrderModeUpdatedAt is { } o) { <p class="small text-muted">Changed <time datetime="@o.ToString("O")">@o.ToLocalTime().ToString("MMM d, h:mm:ss tt")</time></p> }
+            <form method="post" asp-antiforgery="true" action="/admin/chaos/order" class="d-flex gap-2 flex-wrap">
+                <button name="mode" value="FailAfterPayment" class="btn btn-danger" disabled="@failing">Fail after payment</button>
+                <button name="mode" value="None" class="btn btn-outline-primary" disabled="@(!failing)">Back to normal</button>
+            </form>
+        </section>
+    </div>
+    <div class="col-lg-4">
+        <section class="ac-card p-4 h-100 mode-card @(catalogChaos ? "active-mode" : "")" aria-labelledby="catalogHeading">
+            <h2 id="catalogHeading" class="h5"><i class="bi bi-cloud-lightning-rain" aria-hidden="true"></i> Catalog faults</h2>
+            <p class="small text-muted">Makes Catalog fail a share of product reads or answer slowly. Order and Inventory retry with backoff; at 100% their circuit breaker opens.</p>
+            @if (Model.CatalogFailureRate is null)
+            {
+                <p class="small">Catalog chaos is available only in the Development environment.</p>
+            }
+            else
+            {
+                <form method="post" asp-antiforgery="true" action="/admin/chaos/catalog" class="row g-2">
+                    <div class="col-6">
+                        <label for="failurePercent" class="form-label small">Failure %</label>
+                        <input id="failurePercent" name="failurePercent" type="number" min="0" max="100" step="5" class="form-control" value="@((Model.CatalogFailureRate ?? 0) * 100)" />
+                    </div>
+                    <div class="col-6">
+                        <label for="delayMs" class="form-label small">Delay (ms)</label>
+                        <input id="delayMs" name="delayMs" type="number" min="0" max="30000" step="100" class="form-control" value="@(Model.CatalogDelayMs ?? 0)" />
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">Apply</button>
+                    </div>
+                </form>
+                <form method="post" asp-antiforgery="true" action="/admin/chaos/catalog" class="mt-2">
+                    <input type="hidden" name="failurePercent" value="0" /><input type="hidden" name="delayMs" value="0" />
+                    <button type="submit" class="btn btn-outline-primary btn-sm" disabled="@(!catalogChaos)">Turn off</button>
+                </form>
+            }
+        </section>
+    </div>
+</div>
+<section class="ac-card p-4 mt-4" aria-labelledby="demoHeading">
+    <h2 id="demoHeading" class="h5">Demo checklist</h2>
+    <ol class="mb-0">
+        <li>Everything on <em>normal</em>: sign in as a customer and order anything → <strong>Confirmed</strong>.</li>
+        <li>Order 2 × Founders' Commemorative Medal (1 in stock) → <strong>Cancelled</strong>, nothing charged.</li>
+        <li><em>Decline charges</em> on → order again → stock reserved, payment declined, <span class="text-danger">stock released</span> → <strong>Cancelled</strong>.</li>
+        <li><em>Fail after payment</em> on → order again → payment charged, <span class="text-danger">refunded</span>, <span class="text-danger">stock released</span> → <strong>Cancelled</strong>.</li>
+        <li>Catalog faults at 50% → orders still succeed thanks to retries (see the Order service logs).</li>
+    </ol>
+</section>

@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Storefront.Web</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.6.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Store.Observability\Store.Observability.csproj" />
+  </ItemGroup>
+
+  <!--
+    One generated client per contract, all pointed at the gateway. NSwag generates the ApiException
+    classes only for the first reference (Identity); the others import that namespace.
+  -->
+  <ItemGroup>
+    <OpenApiReference Include="..\..\..\contracts\identity.v1.yaml" Link="Clients\Contracts\identity.v1.yaml">
+      <Namespace>Storefront.Web.Clients.Identity</Namespace>
+      <ClassName>IdentityClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson</Options>
+    </OpenApiReference>
+    <OpenApiReference Include="..\..\..\contracts\catalog.v1.yaml" Link="Clients\Contracts\catalog.v1.yaml">
+      <Namespace>Storefront.Web.Clients.Catalog</Namespace>
+      <ClassName>CatalogClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /AdditionalNamespaceUsages:Storefront.Web.Clients.Identity</Options>
+    </OpenApiReference>
+    <OpenApiReference Include="..\..\..\contracts\inventory.v1.yaml" Link="Clients\Contracts\inventory.v1.yaml">
+      <Namespace>Storefront.Web.Clients.Inventory</Namespace>
+      <ClassName>InventoryClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /AdditionalNamespaceUsages:Storefront.Web.Clients.Identity</Options>
+    </OpenApiReference>
+    <OpenApiReference Include="..\..\..\contracts\order.v1.yaml" Link="Clients\Contracts\order.v1.yaml">
+      <Namespace>Storefront.Web.Clients.Orders</Namespace>
+      <ClassName>OrderClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /AdditionalNamespaceUsages:Storefront.Web.Clients.Identity</Options>
+    </OpenApiReference>
+    <OpenApiReference Include="..\..\..\contracts\payment.v1.yaml" Link="Clients\Contracts\payment.v1.yaml">
+      <Namespace>Storefront.Web.Clients.Payments</Namespace>
+      <ClassName>PaymentClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /AdditionalNamespaceUsages:Storefront.Web.Clients.Identity</Options>
+    </OpenApiReference>
+  </ItemGroup>
+
+</Project>

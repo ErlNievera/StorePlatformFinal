@@ -1,0 +1,102 @@
+@using Storefront.Web.Clients.Orders
+@model OrderDetails
+@{
+    ViewData["Title"] = $"Order {Model.OrderId.ToString()[..8]}";
+    var final = Model.Status is OrderStatus.Confirmed or OrderStatus.Cancelled;
+    var history = Model.History.ToList();
+    var titles = new Dictionary<OrderStatus, string>
+    {
+        [OrderStatus.Pending] = "Order placed",
+        [OrderStatus.StockReserved] = "Stock reserved",
+        [OrderStatus.PaymentCharged] = "Payment charged",
+        [OrderStatus.Confirmed] = "Order confirmed",
+        [OrderStatus.Cancelling] = "Something went wrong",
+        [OrderStatus.Cancelled] = "Order cancelled",
+    };
+    var icons = new Dictionary<OrderStatus, string>
+    {
+        [OrderStatus.Pending] = "bi-receipt",
+        [OrderStatus.StockReserved] = "bi-box-seam",
+        [OrderStatus.PaymentCharged] = "bi-credit-card",
+        [OrderStatus.Confirmed] = "bi-check-lg",
+        [OrderStatus.Cancelling] = "bi-exclamation-lg",
+        [OrderStatus.Cancelled] = "bi-x-lg",
+    };
+    var happy = new[] { OrderStatus.Pending, OrderStatus.StockReserved, OrderStatus.PaymentCharged, OrderStatus.Confirmed };
+    var compensating = history.Any(h => h.Status == OrderStatus.Cancelling);
+    var upcoming = final ? [] : compensating ? new[] { OrderStatus.Cancelled } : happy.Where(s => history.All(h => h.Status != s)).ToArray();
+}
+<nav aria-label="Breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        @if (User.IsInRole("Customer")) { <li class="breadcrumb-item"><a href="/orders">My Orders</a></li> }
+        <li class="breadcrumb-item active" aria-current="page">Order @Model.OrderId.ToString()[..8]</li>
+    </ol>
+</nav>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h2 mb-0">Order <code class="fs-4">@Model.OrderId.ToString()[..8]</code></h1>
+    <span id="orderStatusBadge" class="status-pill status-@Model.Status">@(Model.Status switch { OrderStatus.StockReserved => "Stock reserved", OrderStatus.PaymentCharged => "Payment charged", _ => Model.Status.ToString() })</span>
+</div>
+<div id="cancellationReason" class="alert alert-danger d-flex gap-2" role="status" hidden="@string.IsNullOrEmpty(Model.CancellationReason)">
+    <i class="bi bi-x-octagon" aria-hidden="true"></i><div><strong>Cancelled:</strong> <span>@Model.CancellationReason</span></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <section class="ac-card p-4" aria-labelledby="timelineHeading">
+            <h2 id="timelineHeading" class="h5 mb-3">What happened to your order</h2>
+            <p id="timelineLive" class="visually-hidden" aria-live="polite"></p>
+            <div id="sagaTimeline" data-status-url="/orders/@Model.OrderId/status" data-final="@(final ? "true" : "false")" data-count="@history.Count" data-status="@Model.Status">
+                <ol class="timeline">
+                    @for (var i = 0; i < history.Count; i++)
+                    {
+                        var h = history[i];
+                        var failed = h.Status is OrderStatus.Cancelling or OrderStatus.Cancelled;
+                        var css = h.IsCompensation ? "compensation done" : failed ? "failed" : "done";
+                        if (i == history.Count - 1 && !final) { css += " current"; }
+                        var title = h.IsCompensation ? $"Compensation: {h.Reason}" : titles[h.Status];
+                        <li class="timeline-step @css">
+                            <span class="timeline-dot" aria-hidden="true"><i class="bi @(h.IsCompensation ? "bi-arrow-counterclockwise" : icons[h.Status])"></i></span>
+                            <div class="timeline-title">@title</div>
+                            @if (!h.IsCompensation && !string.IsNullOrEmpty(h.Reason) && h.Reason != title)
+                            {
+                                <div class="small">@h.Reason</div>
+                            }
+                            <div class="timeline-time"><time datetime="@h.OccurredAt.ToString("O")">@h.OccurredAt.ToLocalTime().ToString("MMM d, yyyy h:mm:ss tt")</time></div>
+                        </li>
+                    }
+                    @foreach (var s in upcoming)
+                    {
+                        <li class="timeline-step upcoming">
+                            <span class="timeline-dot" aria-hidden="true"><i class="bi @icons[s]"></i></span>
+                            <div class="timeline-title">@titles[s]</div>
+                            <div class="small">@(compensating ? "Undoing the earlier steps…" : "Waiting…")</div>
+                        </li>
+                    }
+                </ol>
+            </div>
+            @if (!final)
+            {
+                <p id="pollingNote" class="small text-muted mb-0"><span class="spinner-grow spinner-grow-sm text-primary" aria-hidden="true"></span> Updating every 2 seconds…</p>
+            }
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="ac-card p-4" aria-labelledby="itemsHeading">
+            <h2 id="itemsHeading" class="h5">Items</h2>
+            <ul class="list-unstyled mb-3">
+                @foreach (var line in Model.Lines)
+                {
+                    <li class="d-flex justify-content-between py-2 border-bottom">
+                        <span>@line.Quantity × @line.ProductName <span class="small text-muted d-block">@Money.Format(line.UnitPrice, Model.Currency) each (price when ordered)</span></span>
+                        <span class="fw-semibold">@Money.Format(line.LineTotal, Model.Currency)</span>
+                    </li>
+                }
+            </ul>
+            <div class="d-flex justify-content-between fs-5 fw-bold"><span>Total</span><span>@Money.Format(Model.TotalAmount, Model.Currency)</span></div>
+            <p class="small text-muted mt-3 mb-0">Placed <time datetime="@Model.CreatedAt.ToString("O")">@Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</time></p>
+        </section>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/order-timeline.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,78 @@
+/* =====================================================================
+   Motion: splash, page entry, staggered cards, skeletons, toasts,
+   modals, button spinners and the timeline pulse.
+   Everything is disabled for prefers-reduced-motion.
+   ===================================================================== */
+
+/* Splash screen (shown on first load of a visit) */
+.splash {
+  position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center;
+  background: var(--ac-blue-dark); color: var(--ac-white); transition: opacity .5s ease, visibility .5s ease;
+}
+.splash.is-hidden { opacity: 0; visibility: hidden; }
+.splash-inner { text-align: center; animation: splash-rise .9s ease both; }
+.splash-ring {
+  width: 96px; height: 96px; margin: 0 auto 1rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ac-gold-gradient); background-size: 200% 200%; animation: gold-shimmer 1.6s linear infinite;
+  font-family: var(--ac-font-brand); font-weight: 700; font-size: 1.8rem; color: var(--ac-ink);
+}
+.splash-ring img { width: 80px; height: 80px; object-fit: contain; }
+@keyframes splash-rise { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes gold-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+
+/* Page fade / slide in */
+.page-enter { animation: page-in .45s ease both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Staggered cards: children animate with a delay set from --i */
+.stagger > * { animation: card-in .5s ease both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes card-in { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* Skeleton loaders */
+.skeleton {
+  position: relative; overflow: hidden; border-radius: 8px; min-height: 1rem;
+  background: var(--ac-border);
+}
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+  animation: skeleton-sweep 1.2s ease-in-out infinite;
+}
+[data-bs-theme="dark"] .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent); }
+@keyframes skeleton-sweep { to { transform: translateX(100%); } }
+
+/* Toasts slide in from the right */
+.toast.showing, .toast.show { animation: toast-in .35s ease both; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+
+/* Modal scale + fade */
+.modal.fade .modal-dialog { transform: scale(.94); opacity: 0; transition: transform .25s ease, opacity .25s ease; }
+.modal.show .modal-dialog { transform: none; opacity: 1; }
+
+/* Button spinners: add .is-loading while a form submits */
+.btn.is-loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn.is-loading::after {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 1.1rem; height: 1.1rem; border-radius: 50%;
+  border: 2px solid currentColor; border-color: var(--ac-white) var(--ac-white) transparent transparent;
+  animation: spin .7s linear infinite;
+}
+.btn-gold.is-loading::after, .btn-outline-primary.is-loading::after, .btn-light.is-loading::after { border-color: var(--ac-ink) var(--ac-ink) transparent transparent; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Timeline: the current step pulses while the saga is running */
+.timeline-step.current .timeline-dot { animation: pulse 1.4s ease-out infinite; }
+.timeline-step.compensation.current .timeline-dot { animation-name: pulse-red; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 147, 216, .55); } 100% { box-shadow: 0 0 0 14px rgba(0, 147, 216, 0); } }
+@keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(227, 22, 30, .55); } 100% { box-shadow: 0 0 0 14px rgba(227, 22, 30, 0); } }
+.timeline-step.just-added { animation: step-in .45s ease both; }
+@keyframes step-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .splash { display: none !important; }
+}

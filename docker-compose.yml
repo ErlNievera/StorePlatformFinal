@@ -222,6 +222,22 @@ services:
     healthcheck: *api-healthcheck
     networks: [store-net]
 
+  storefront:
+    build:
+      context: .
+      dockerfile: src/Storefront/Storefront.Web/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      Logging__LogLevel__System.Net.Http.HttpClient: Warning
+      Gateway__BaseUrl: http://gateway:8080
+    ports: ["${STOREFRONT_PORT}:8080"]
+    volumes: [storefront-keys:/home/app/.aspnet/DataProtection-Keys]
+    depends_on:
+      gateway: { condition: service_healthy }
+    healthcheck: *api-healthcheck
+    networks: [store-net]
+
 networks:
   store-net:
     driver: bridge
@@ -233,3 +249,4 @@ volumes:
   inventory-db-data:
   order-db-data:
   payment-db-data:
+  storefront-keys:

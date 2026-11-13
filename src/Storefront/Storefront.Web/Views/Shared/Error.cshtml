@@ -1,0 +1,23 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var icon = Model.StatusCode switch { 401 => "bi-person-lock", 403 => "bi-shield-lock", 404 => "bi-compass", 429 => "bi-hourglass-split", 503 => "bi-plug", _ => "bi-exclamation-diamond" };
+}
+<section class="empty-state ac-card mx-auto" style="max-width: 640px">
+    <div class="icon mb-2"><i class="bi @icon" aria-hidden="true"></i></div>
+    <p class="text-accent fw-semibold mb-1">Error @Model.StatusCode</p>
+    <h1 class="h2">@Model.Title</h1>
+    <div class="gold-rule mx-auto my-3"></div>
+    <p class="lead">@Model.Message</p>
+    <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
+        <a class="btn btn-primary" href="/"><i class="bi bi-shop" aria-hidden="true"></i> Back to the shop</a>
+        @if (Model.StatusCode is 401 or 403)
+        {
+            <a class="btn btn-outline-primary" href="/account/login">Sign in with another account</a>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Model.CorrelationId))
+    {
+        <p class="small text-muted mt-4 mb-0">Reference: <code>@Model.CorrelationId</code></p>
+    }
+</section>
