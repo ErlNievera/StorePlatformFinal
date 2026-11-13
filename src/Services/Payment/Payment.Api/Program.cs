@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Payment.Api.Application;
 using Payment.Api.Data;
+using Payment.Api.Messaging;
+using Store.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +16,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<PaymentDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
+builder.Services.AddScoped<PaymentProcessor>();
+
+builder.Services.AddStoreMessaging(builder.Configuration);
+builder.Services.AddEventConsumer<ChargePaymentRequestedConsumer>();
+builder.Services.AddEventConsumer<RefundPaymentRequestedConsumer>();
 
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<PaymentDbContext>("database");
+    .AddDbContextCheck<PaymentDbContext>("database")
+    .AddRabbitMqHealthCheck();
 
 var app = builder.Build();
 
