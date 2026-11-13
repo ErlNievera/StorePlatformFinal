@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Order.Api.Data;
 using Order.Api.Application;
 using Order.Api.Clients;
+using Order.Api.Saga;
+using Store.Messaging;
 using Store.Observability;
 using Store.Observability.Api;
 using Store.Observability.Security;
@@ -22,6 +24,9 @@ builder.Services.AddStoreObservability();
 builder.Services.AddStoreJwtAuthentication(builder.Configuration);
 builder.Services.AddStoreApi("Store Platform - Order API", "Orders, order lines and status history; orchestrates the order saga.");
 builder.Services.AddScoped<OrderPlacementService>();
+builder.Services.AddScoped<OrderSagaOrchestrator>();
+builder.Services.AddStoreMessaging(builder.Configuration);
+builder.Services.AddHostedService<StalledSagaMonitor>();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
 

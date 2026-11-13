@@ -2,18 +2,22 @@ using Order.Api.Clients;
 using Order.Api.Contracts;
 using Order.Api.Data;
 using Order.Api.Domain;
+using Order.Api.Saga;
+using Store.Messaging;
 using Store.Observability;
 
 namespace Order.Api.Application;
 
 /// <summary>
-/// Validates an order against Catalog, snapshots names and prices onto the lines, and stores the
-/// order in <see cref="OrderStatus.Pending"/> together with its saga state.
+/// Validates an order against Catalog, snapshots names and prices onto the lines, stores the
+/// order in <see cref="OrderStatus.Pending"/> together with its saga state, and starts the saga by
+/// publishing <c>OrderPlaced</c>.
 /// </summary>
 public sealed class OrderPlacementService(
     OrderDbContext db,
     ICatalogProducts catalog,
     ICorrelationIdAccessor correlation,
+    IEventPublisher publisher,
     TimeProvider clock,
     ILogger<OrderPlacementService> logger)
 {
@@ -52,9 +56,20 @@ public sealed class OrderPlacementService(
         var now = clock.GetUtcNow();
         var order = CustomerOrder.Place(customerId, lines, currency!, now);
         var correlationId = correlation.CorrelationId ?? Correlation.NewId();
+        var saga = new OrderSagaState(order.OrderId, correlationId, now);
         db.Orders.Add(order);
-        db.SagaStates.Add(new OrderSagaState(order.OrderId, correlationId, now));
+        db.SagaStates.Add(saga);
         await db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await publisher.PublishAsync(SagaMessages.OrderPlaced(order, saga, clock.GetUtcNow()), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The order is saved; the stalled-saga monitor publishes OrderPlaced again shortly.
+            logger.LogWarning(ex, "OrderPlaced for order {OrderId} could not be published now; it will be retried", order.OrderId);
+        }
 
         logger.LogInformation(
             "Placed order {OrderId} for customer {CustomerId}: {LineCount} line(s), total {Total} {Currency}",

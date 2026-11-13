@@ -71,6 +71,8 @@ public sealed class OrderDbContext(DbContextOptions<OrderDbContext> options) : D
             entity.Property(s => s.FailureReason).HasMaxLength(OrderSagaState.FailureReasonMaxLength);
             entity.Property(s => s.Version).IsRowVersion();
             entity.Ignore(s => s.CompensationFinished);
+            entity.Ignore(s => s.IsWaiting);
+            entity.HasIndex(s => new { s.Step, s.UpdatedAt });
             entity.HasOne<CustomerOrder>().WithOne().HasForeignKey<OrderSagaState>(s => s.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
 

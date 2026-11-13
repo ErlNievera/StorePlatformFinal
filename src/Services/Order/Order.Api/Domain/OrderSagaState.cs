@@ -126,6 +126,24 @@ public sealed class OrderSagaState
         UpdatedAt = now;
     }
 
+    /// <summary>True while the saga waits on another service (not completed or cancelled).</summary>
+    public bool IsWaiting => Step is SagaStep.AwaitingStockReservation or SagaStep.AwaitingPayment or SagaStep.Compensating;
+
+    /// <summary>Records that the current step's command was published again by the stalled-saga monitor.</summary>
+    public void MarkRepublished(DateTimeOffset now)
+    {
+        if (!IsWaiting)
+        {
+            throw new InvalidOperationException($"Saga for order {OrderId} is {Step}; nothing to republish.");
+        }
+
+        RepublishCount++;
+        UpdatedAt = now;
+    }
+
+    /// <summary>How many times the stalled-saga monitor republished a command for this order.</summary>
+    public int RepublishCount { get; private set; }
+
     /// <summary>Saga ended with the order cancelled.</summary>
     public void MarkCancelled(string reason, DateTimeOffset now)
     {
