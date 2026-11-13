@@ -16,7 +16,7 @@ public static class CatalogClientRegistration
     /// Adds <see cref="ICatalogClient"/> through IHttpClientFactory with the correlation id
     /// DelegatingHandler and <c>AddStandardResilienceHandler</c>: 3 retries with exponential
     /// backoff and jitter, 2 s per attempt, 10 s in total, and a circuit breaker that opens for
-    /// 15 s when half the calls in 30 s fail. Also adds <see cref="ICatalogProducts"/>.
+    /// 15 s when 80% of at least 10 calls in 30 s fail. Also adds <see cref="ICatalogProducts"/>.
     /// </summary>
     public static IServiceCollection AddCatalogClient(this IServiceCollection services, IConfiguration configuration)
     {
@@ -56,8 +56,8 @@ public static class CatalogClientRegistration
                 options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
 
                 options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
-                options.CircuitBreaker.FailureRatio = 0.5;
-                options.CircuitBreaker.MinimumThroughput = 8;
+                options.CircuitBreaker.FailureRatio = 0.8;
+                options.CircuitBreaker.MinimumThroughput = 10;
                 options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(15);
                 options.CircuitBreaker.OnOpened = args =>
                 {
