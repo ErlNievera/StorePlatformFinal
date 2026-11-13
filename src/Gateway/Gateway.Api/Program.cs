@@ -18,6 +18,7 @@ builder.Services.AddOcelot(builder.Configuration).AddPolly();
 var app = builder.Build();
 
 app.UseMiddleware<EdgeCorrelationMiddleware>();
+app.UseMiddleware<RateLimitClientMiddleware>();
 app.UseHealthChecks("/health");
 app.UseAuthentication();
 await app.UseOcelot();
