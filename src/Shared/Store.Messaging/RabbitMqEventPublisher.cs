@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using Store.Contracts.Events;
+using Store.Observability;
 
 namespace Store.Messaging;
 
@@ -9,6 +10,8 @@ namespace Store.Messaging;
 /// <see cref="IEventPublisher"/> backed by one confirm-mode channel. With publisher confirmation
 /// tracking enabled, <c>BasicPublishAsync</c> completes only after the broker acks the message and
 /// throws when it is nacked or returned as unroutable (<c>mandatory: true</c>).
+/// The event's correlation id travels in the <c>X-Correlation-ID</c> message header (and the AMQP
+/// <c>correlation_id</c> property) so the consumer can restore it.
 /// </summary>
 internal sealed class RabbitMqEventPublisher(
     IRabbitMqConnection connection,
@@ -35,7 +38,13 @@ internal sealed class RabbitMqEventPublisher(
             DeliveryMode = DeliveryModes.Persistent,
             Type = eventType.Name,
             Timestamp = new AmqpTimestamp(integrationEvent.OccurredAt.ToUnixTimeSeconds()),
+            Headers = new Dictionary<string, object?>
+            {
+                [Correlation.HeaderName] = integrationEvent.CorrelationId,
+            },
         };
+
+        using var scope = logger.BeginCorrelationScope(integrationEvent.CorrelationId);
 
         for (var attempt = 1; ; attempt++)
         {

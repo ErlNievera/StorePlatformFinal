@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Store.Contracts.Events\Store.Contracts.Events.csproj" />
+    <ProjectReference Include="..\Store.Observability\Store.Observability.csproj" />
   </ItemGroup>
 
 </Project>
