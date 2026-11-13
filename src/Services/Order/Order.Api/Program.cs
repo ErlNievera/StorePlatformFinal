@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Order.Api.Data;
-using Store.Observability;
+using Order.Api.Application;
 using Order.Api.Clients;
+using Store.Observability;
+using Store.Observability.Api;
+using Store.Observability.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddStoreConsoleLogging();
@@ -16,6 +19,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddCatalogClient(builder.Configuration);
 builder.Services.AddStoreObservability();
+builder.Services.AddStoreJwtAuthentication(builder.Configuration);
+builder.Services.AddStoreApi("Store Platform - Order API", "Orders, order lines and status history; orchestrates the order saga.");
+builder.Services.AddScoped<OrderPlacementService>();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
 
@@ -25,9 +31,17 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 app.UseStoreObservability();
+if (app.Environment.IsDevelopment())
+{
+    app.UseStoreSwagger();
+}
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 await app.InitializeOrderDatabaseAsync(app.Lifetime.ApplicationStopping);
 
 app.MapHealthChecks("/health");
+app.MapControllers();
 
 app.Run();

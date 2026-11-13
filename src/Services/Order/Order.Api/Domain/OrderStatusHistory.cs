@@ -11,9 +11,11 @@ public sealed class OrderStatusHistory
     }
 
     /// <summary>Creates an entry.</summary>
-    public OrderStatusHistory(OrderStatus status, string? reason, bool isCompensation, DateTimeOffset occurredAt)
+    public OrderStatusHistory(int sequence, OrderStatus status, string? reason, bool isCompensation, DateTimeOffset occurredAt)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sequence);
         Id = Guid.NewGuid();
+        Sequence = sequence;
         Status = status;
         Reason = reason is null || reason.Length <= ReasonMaxLength ? reason : reason[..ReasonMaxLength];
         IsCompensation = isCompensation;
@@ -25,6 +27,9 @@ public sealed class OrderStatusHistory
 
     /// <summary>Owning order.</summary>
     public Guid OrderId { get; private set; }
+
+    /// <summary>Position in the order's timeline (1, 2, 3...), so steps recorded in the same instant keep their order.</summary>
+    public int Sequence { get; private set; }
 
     /// <summary>Status after this step.</summary>
     public OrderStatus Status { get; private set; }
