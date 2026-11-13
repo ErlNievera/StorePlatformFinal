@@ -39,6 +39,25 @@
       ]
     },
     {
+      "UpstreamPathTemplate": "/identity/v1/auth/me",
+      "UpstreamHttpMethod": [
+        "GET"
+      ],
+      "DownstreamPathTemplate": "/api/v1/auth/me",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identity-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ]
+      }
+    },
+    {
       "UpstreamPathTemplate": "/catalog/v1/products",
       "UpstreamHttpMethod": [
         "GET"
@@ -93,6 +112,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -112,6 +134,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -132,6 +157,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -179,6 +207,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -198,6 +229,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -217,6 +251,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Customer"
       }
     },
     {
@@ -237,7 +274,10 @@
           "Bearer"
         ]
       },
-      "Priority": 2
+      "Priority": 2,
+      "RouteClaimsRequirement": {
+        "role": "Customer"
+      }
     },
     {
       "UpstreamPathTemplate": "/orders/v1/orders/{orderId}",
@@ -276,6 +316,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -295,6 +338,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -314,6 +360,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     },
     {
@@ -334,6 +383,9 @@
         "AuthenticationProviderKeys": [
           "Bearer"
         ]
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
       }
     }
   ],
