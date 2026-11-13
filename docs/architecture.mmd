@@ -1,0 +1,64 @@
+%% Store Platform - every module in one deployable system
+graph LR
+    client["Client / Storefront<br/>(browser · Storefront.Web :5100)"]
+
+    subgraph compose["Docker Compose"]
+        direction LR
+        gateway["Ocelot Gateway · JWT<br/>:5000 · rate limit · QoS"]
+
+        identity["Identity<br/>:own DB"]
+        catalog["Catalog<br/>:own DB"]
+        inventory["Inventory<br/>:own DB"]
+        order["Order<br/>saga orchestrator<br/>:own DB"]
+        payment["Payment<br/>:own DB"]
+
+        identityDb[("identity_db<br/>PostgreSQL 16")]
+        catalogDb[("catalog_db<br/>PostgreSQL 16")]
+        inventoryDb[("inventory_db<br/>PostgreSQL 16")]
+        orderDb[("order_db<br/>PostgreSQL 16")]
+        paymentDb[("payment_db<br/>PostgreSQL 16")]
+
+        subgraph rabbit["RabbitMQ · event bus · publish and consume"]
+            direction TB
+            events{{"store.events<br/>topic exchange"}}
+            dlx{{"store.dlx<br/>dead-letter exchange"}}
+            dlq["&lt;queue&gt;.dlq<br/>one per consumer queue"]
+            events -. "after 3 failed attempts" .-> dlx
+            dlx --> dlq
+        end
+
+        gateway -- REST --> identity
+        gateway -- REST --> catalog
+        gateway -- REST --> inventory
+        gateway -- REST --> order
+        gateway -- REST --> payment
+
+        order -. "REST (generated client,<br/>retry + circuit breaker)" .-> catalog
+        inventory -. "REST (generated client)" .-> catalog
+
+        identity --- identityDb
+        catalog --- catalogDb
+        inventory --- inventoryDb
+        order --- orderDb
+        payment --- paymentDb
+
+        order <-- "events<br/>publisher confirms · manual ack" --> events
+        inventory <-- "events" --> events
+        payment <-- "events" --> events
+    end
+
+    client -- "HTTPS · JWT (Bearer)" --> gateway
+
+    classDef service fill:#0093D8,stroke:#006FA6,color:#FFFFFF
+    classDef gatewayStyle fill:#C4A20B,stroke:#8C7306,color:#1C1C1B
+    classDef db fill:#1C1C1B,stroke:#1C1C1B,color:#FFFFFF
+    classDef bus fill:#E6F4FB,stroke:#0093D8,color:#1C1C1B
+    classDef clientStyle fill:#FFFFFF,stroke:#006FA6,color:#1C1C1B
+
+    class identity,catalog,inventory,order,payment service
+    class gateway gatewayStyle
+    class identityDb,catalogDb,inventoryDb,orderDb,paymentDb db
+    class events,dlx,dlq bus
+    class client clientStyle
+    style rabbit fill:#E6F4FB,stroke:#0093D8,color:#1C1C1B
+    style compose fill:#F7F9FB,stroke:#8C7306,color:#1C1C1B
