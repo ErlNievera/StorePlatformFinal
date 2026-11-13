@@ -15,10 +15,25 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.6.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\Store.Messaging\Store.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Store.Observability\Store.Observability.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApiReference Include="..\..\..\..\contracts\catalog.v1.yaml" Link="Clients\catalog.v1.yaml">
+      <Namespace>Inventory.Api.Clients.Catalog</Namespace>
+      <ClassName>CatalogClient</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /GenerateExceptionClasses:true /ExceptionClass:CatalogApiException</Options>
+    </OpenApiReference>
   </ItemGroup>
 
 </Project>
