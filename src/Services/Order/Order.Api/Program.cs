@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Order.Api.Data;
 using Store.Observability;
+using Order.Api.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddStoreConsoleLogging();
@@ -13,6 +14,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddCatalogClient(builder.Configuration);
 builder.Services.AddStoreObservability();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
