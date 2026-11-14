@@ -1,6 +1,6 @@
 # Store Platform Capstone
 
-**CruzDusty_StorePlatformCapstone**: a microservices campus store for UST Angelicum College. Five .NET 10 services, each with its own PostgreSQL 16 database, an Ocelot API gateway, RabbitMQ events with an orchestrated order saga, and an ASP.NET Core MVC Storefront, all started with one `docker compose up --build`.
+**ErlNievera_StorePlatformFinal.slnx**: a microservices campus store for UST Angelicum College. Five .NET 10 services, each with its own PostgreSQL 16 database, an Ocelot API gateway, RabbitMQ events with an orchestrated order saga, and an ASP.NET Core MVC Storefront, all started with one `docker compose up --build`.
 
 UST Angelicum College · Capstone project
 
