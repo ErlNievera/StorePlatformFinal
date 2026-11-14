@@ -339,7 +339,7 @@ src/
 - Branch names: `<github-username>/phase<N>-<short-topic>`, for example `PimentelStef/phase1-catalog-contract`.
 - Conventional commit messages: `feat(catalog): ...`, `fix(saga): ...`, `docs(readme): ...`, `chore(compose): ...`, `test(postman): ...`.
 - Contract-first: each service's OpenAPI contract merged before any controller for that service was written.
-- `dotnet build CruzDusty_StorePlatformCapstone.slnx` must pass before every push; Docker changes are checked with `docker compose config`.
+- `dotnet build ErlNievera_OnlineStorePlatform.slnx` must pass before every push; Docker changes are checked with `docker compose config`.
 
 Review rotation:
 
