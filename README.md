@@ -1,6 +1,6 @@
 # Store Platform Capstone
 
-**ErlNievera_OnlineFinalPlatform.slnx**: a microservices campus store for UST Angelicum College. Five .NET 10 services, each with its own PostgreSQL 16 database, an Ocelot API gateway, RabbitMQ events with an orchestrated order saga, and an ASP.NET Core MVC Storefront, all started with one `docker compose up --build`.
+**Erlnievera_OnlinePlatformFinal.slnx**: a microservices campus store for UST Angelicum College. Five .NET 10 services, each with its own PostgreSQL 16 database, an Ocelot API gateway, RabbitMQ events with an orchestrated order saga, and an ASP.NET Core MVC Storefront, all started with one `docker compose up --build`.
 
 UST Angelicum College · Capstone project
 
@@ -287,7 +287,7 @@ Paths in each contract are relative to these base URLs, so a generated client sw
 ## Repository layout
 
 ```
-ErlNievera_OnlineFinalPlatform.slnx   solution (all projects)
+Erlnievera_OnlinePlatformFinal.slnx   solution (all projects)
 docker-compose.yml                     the whole system
 .env.example                           local-dev configuration (copied to .env by setup.cmd)
 setup.cmd                              one-time setup for Windows
@@ -339,7 +339,7 @@ src/
 - Branch names: `<github-username>/phase<N>-<short-topic>`, for example `PimentelStef/phase1-catalog-contract`.
 - Conventional commit messages: `feat(catalog): ...`, `fix(saga): ...`, `docs(readme): ...`, `chore(compose): ...`, `test(postman): ...`.
 - Contract-first: each service's OpenAPI contract merged before any controller for that service was written.
-- `dotnet build ErlNievera_OnlineFinalPlatform.slnx` must pass before every push; Docker changes are checked with `docker compose config`.
+- `dotnet build Erlnievera_OnlinePlatformFinal.slnx` must pass before every push; Docker changes are checked with `docker compose config`.
 
 Review rotation:
 
